@@ -14,26 +14,33 @@ Several v3 names changed in v4 (for example `Config.String`, `Context.Service`,
 
 ## The one rule
 
-Nothing above the parser knows how a parser works, and the core knows nothing about apps.
+**A plugin knows the core. The core knows no plugin, no transport, and no app.**
 
-| Directory | Package entry | Owns | Must never |
+| Package | Directory | Owns | Must never |
 |---|---|---|---|
-| `src/core/` | `parser-stream` | the block contract (cut, sanitize, number), the document reducer, the event stream, and the ports | name a tag, a prompt, a model, a credential, a transport, or a route; import an adapter |
-| `src/parsers/` | `parser-stream/parsers` | each parser's prompt, requested shape, decoding, tags, and credential | reach into the core's internals or the app |
-| `src/splitters/` | `parser-stream/splitters` | cutting a source into parts | anything else |
-| `src/app/` | `parser-stream/app` | live sessions and the HTTP/SSE transport: routes, pages, replay | become the only way to use the core |
-| `src/node/`, `src/workers/` | `parser-stream/node`, `/workers/*` | host wiring: sanitizer, server, Durable Object, env config | hold engine logic |
+| `parser-stream` | `packages/core` | the `HtmlStream` port, the streaming DOM engine (cut, sanitize, number), the document reducer, the event contract, `Credential`, PDF page splitting | name a tag, a prompt, a model, a credential, a transport, or a route; import any other package here |
+| `@parser-stream/parsebench` | `packages/parsebench` | the ParseBench layout contract: prompts, the `Schema`-typed `LayoutElement`, the renderer that picks tags | name a provider or a transport |
+| `@parser-stream/gemini` | `packages/gemini` | the Gemini transport, `GeminiFlashParseBenchParser` (contract + Flash), `GeminiHtmlParser` | reach into the core's internals |
+| `@parser-stream/openai-compatible`, `/http`, `/markdown` | `packages/*` | the other plugins and the markdown helper | depend on the app |
+| `@parser-stream/app` | `packages/app` | live sessions and the HTTP + SSE transport: routes, pages, replay | become the only way to use the core |
+| `@parser-stream/node`, `/workers` | `packages/*` | host adapters: sanitizers, HTTP server, Durable Object store | hold engine logic |
+| `apps/cli`, `apps/worker` | `apps/*` | wiring: which plugin, which sanitizer, which config | hold anything reusable |
 
-The core produces an event stream. HTTP with Server-Sent Events is one transport for it, and it lives in `src/app/`. A different app can put the same stream on a WebSocket, a queue, or a file without touching the core.
+The core produces an event stream. HTTP with Server-Sent Events is one transport, and it lives in `@parser-stream/app`. Another app can carry the same events over a WebSocket, a queue, or a file.
+
+## Writing a plugin
+
+1. Implement the port: `HtmlStream.of({ name, parse })`, where `parse` returns `Stream<string, HtmlStreamError>`.
+2. Own your prompt, the shape you ask for, its decoding (use `Schema`), and the tags you emit.
+3. Read `Credential` for the caller's secret, and raise your own error when it is missing.
+4. Publish `layer(options)` and `layerConfig` so a host can pick you with one line.
 
 ## Rules
 
-- A parser is any `Source` in, HTML text stream out. Do not add PDF assumptions outside `src/splitters/Pdf.ts`.
-- A parser that needs a secret reads `ParserCredential` and raises its own error. The engine passes no keys.
-- `Converter.layer` requires all three ports (`Parser`, `Sanitizer`, `Splitter`). The host wiring provides them.
-- Every block a parser produces crosses `Sanitizer` before it is stored or sent. Server-built wrappers are added after.
-- Nothing outside `src/node/` may import `node:*`, `@effect/platform-node`, or `html-rewriter-wasm`: the Worker bundles the rest.
+- A source is bytes plus a media type. Do not add PDF assumptions outside `packages/core/src/splitters/Pdf.ts`.
+- Every block a plugin produces crosses `Sanitizer` before it is stored or sent. Server-built wrappers are added after.
+- Only `packages/node` and `apps/cli` may import `node:*`, `@effect/platform-node`, or `html-rewriter-wasm`: the Worker bundles the rest.
 - A caller's key stays in memory. Never store, log, or return it.
 - Route handlers only see services the router tracks: use `Context.Service` (not `Context.Reference`) for anything they read, and `HttpRouter.provideRequest` with `toWebHandler`.
-- Tests never call a live model. Use `Parser.fromFunction` or the `fakeGemini` client in `test/fixtures.ts`.
+- Tests live in `packages/*/test`, never call a live model, and use `@parser-stream/testkit`.
 - Run `pnpm typecheck` and `pnpm test` before you commit. Deploy with `pnpm run deploy`.

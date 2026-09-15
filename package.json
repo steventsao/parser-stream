@@ -1,7 +1,6 @@
 {
-  "name": "parser-stream",
-  "version": "0.1.0",
-  "description": "Stream documents into clean, sanitized, semantic HTML. Bring your own key, or bring your own parser. Built with Effect.",
+  "name": "parser-stream-workspace",
+  "private": true,
   "type": "module",
   "license": "MIT",
   "author": "Steven Tsao",
@@ -9,70 +8,33 @@
     "type": "git",
     "url": "git+https://github.com/steventsao/parser-stream.git"
   },
-  "keywords": [
-    "pdf",
-    "html",
-    "parser",
-    "streaming",
-    "sse",
-    "effect",
-    "gemini",
-    "byok"
-  ],
   "engines": {
     "node": ">=22"
   },
-  "bin": {
-    "parser-stream": "./dist/bin.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/core/index.d.ts",
-      "default": "./dist/core/index.js"
-    },
-    "./parsers": {
-      "types": "./dist/parsers/index.d.ts",
-      "default": "./dist/parsers/index.js"
-    },
-    "./app": {
-      "types": "./dist/app/index.d.ts",
-      "default": "./dist/app/index.js"
-    },
-    "./node": {
-      "types": "./dist/node/index.d.ts",
-      "default": "./dist/node/index.js"
-    },
-    "./workers/sanitizer": {
-      "types": "./dist/workers/Sanitizer.d.ts",
-      "default": "./dist/workers/Sanitizer.js"
-    },
-    "./workers/session-store": {
-      "types": "./dist/workers/SessionStore.d.ts",
-      "default": "./dist/workers/SessionStore.js"
-    }
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.workers.json",
     "test": "vitest run",
-    "cli": "tsx src/bin.ts",
-    "deploy": "wrangler deploy"
-  },
-  "dependencies": {
-    "@effect/platform-node": "4.0.0-rc.115",
-    "effect": "4.0.0-rc.115",
-    "html-rewriter-wasm": "^0.4.1",
-    "pdf-lib": "^1.17.1"
+    "cli": "tsx apps/cli/src/bin.ts",
+    "deploy": "wrangler deploy --config apps/worker/wrangler.toml",
+    "sample-pdf": "tsx scripts/sample-pdf.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260915.1",
+    "@effect/platform-node": "4.0.0-rc.115",
     "@effect/vitest": "4.0.0-rc.115",
+    "@parser-stream/app": "workspace:*",
+    "@parser-stream/gemini": "workspace:*",
+    "@parser-stream/http": "workspace:*",
+    "@parser-stream/markdown": "workspace:*",
+    "@parser-stream/node": "workspace:*",
+    "@parser-stream/openai-compatible": "workspace:*",
+    "@parser-stream/parsebench": "workspace:*",
+    "@parser-stream/testkit": "workspace:*",
+    "@parser-stream/workers": "workspace:*",
     "@types/node": "^22",
+    "effect": "4.0.0-rc.115",
+    "parser-stream": "workspace:*",
+    "pdf-lib": "^1.17.1",
     "tsx": "^4",
     "typescript": "^5.9",
     "vitest": "^5.0.1",

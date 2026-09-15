@@ -1,0 +1,27 @@
+{
+  "name": "@parser-stream/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "apps/cli"
+  },
+  "private": true,
+  "description": "The command line host: serve and convert.",
+  "bin": {
+    "parser-stream": "./src/bin.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "parser-stream": "workspace:*",
+    "@parser-stream/app": "workspace:*",
+    "@parser-stream/node": "workspace:*",
+    "@parser-stream/gemini": "workspace:*",
+    "@parser-stream/http": "workspace:*",
+    "@parser-stream/openai-compatible": "workspace:*",
+    "@effect/platform-node": "4.0.0-rc.115"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@parser-stream/http",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "packages/http"
+  },
+  "description": "An HtmlStream plugin that calls your own parser endpoint, in any language.",
+  "exports": {
+    ".": "./src/Http.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "parser-stream": "workspace:*"
+  }
+}

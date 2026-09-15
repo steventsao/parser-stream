@@ -1,0 +1,23 @@
+{
+  "name": "@parser-stream/testkit",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "packages/testkit"
+  },
+  "private": true,
+  "description": "Test fixtures shared by the packages.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "parser-stream": "workspace:*",
+    "@parser-stream/node": "workspace:*",
+    "pdf-lib": "^1.17.1"
+  }
+}

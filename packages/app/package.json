@@ -1,0 +1,23 @@
+{
+  "name": "@parser-stream/app",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "packages/app"
+  },
+  "description": "Live sessions and the HTTP + SSE transport over the parser-stream core.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./Sessions": "./src/Sessions.ts",
+    "./Routes": "./src/Routes.ts",
+    "./Ui": "./src/Ui.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "parser-stream": "workspace:*"
+  }
+}

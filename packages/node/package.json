@@ -1,0 +1,25 @@
+{
+  "name": "@parser-stream/node",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "packages/node"
+  },
+  "description": "Node adapters: the lol-html sanitizer and an HTTP server for the app routes.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./Sanitizer": "./src/Sanitizer.ts",
+    "./Server": "./src/Server.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "parser-stream": "workspace:*",
+    "@parser-stream/app": "workspace:*",
+    "html-rewriter-wasm": "^0.4.1",
+    "@effect/platform-node": "4.0.0-rc.115"
+  }
+}

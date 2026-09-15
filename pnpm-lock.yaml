@@ -7,29 +7,55 @@ settings:
 importers:
 
   .:
-    dependencies:
-      '@effect/platform-node':
-        specifier: 4.0.0-rc.115
-        version: 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
-      effect:
-        specifier: 4.0.0-rc.115
-        version: 4.0.0-rc.115
-      html-rewriter-wasm:
-        specifier: ^0.4.1
-        version: 0.4.1
-      pdf-lib:
-        specifier: ^1.17.1
-        version: 1.17.1
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260915.1
         version: 5.20260915.1
+      '@effect/platform-node':
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
       '@effect/vitest':
         specifier: 4.0.0-rc.115
         version: 4.0.0-rc.115(effect@4.0.0-rc.115)(vitest@5.0.1(@types/node@22.20.3)(vite@8.3.0(@types/node@22.20.3)(esbuild@0.28.2)(tsx@4.23.13)))
+      '@parser-stream/app':
+        specifier: workspace:*
+        version: link:packages/app
+      '@parser-stream/gemini':
+        specifier: workspace:*
+        version: link:packages/gemini
+      '@parser-stream/http':
+        specifier: workspace:*
+        version: link:packages/http
+      '@parser-stream/markdown':
+        specifier: workspace:*
+        version: link:packages/markdown
+      '@parser-stream/node':
+        specifier: workspace:*
+        version: link:packages/node
+      '@parser-stream/openai-compatible':
+        specifier: workspace:*
+        version: link:packages/openai-compatible
+      '@parser-stream/parsebench':
+        specifier: workspace:*
+        version: link:packages/parsebench
+      '@parser-stream/testkit':
+        specifier: workspace:*
+        version: link:packages/testkit
+      '@parser-stream/workers':
+        specifier: workspace:*
+        version: link:packages/workers
       '@types/node':
         specifier: ^22
         version: 22.20.3
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      parser-stream:
+        specifier: workspace:*
+        version: link:packages/core
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
       tsx:
         specifier: ^4
         version: 4.23.13
@@ -42,6 +68,165 @@ importers:
       wrangler:
         specifier: ^4
         version: 4.132.0(@cloudflare/workers-types@5.20260915.1)(@types/node@22.20.3)
+
+  apps/cli:
+    dependencies:
+      '@effect/platform-node':
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
+      '@parser-stream/app':
+        specifier: workspace:*
+        version: link:../../packages/app
+      '@parser-stream/gemini':
+        specifier: workspace:*
+        version: link:../../packages/gemini
+      '@parser-stream/http':
+        specifier: workspace:*
+        version: link:../../packages/http
+      '@parser-stream/node':
+        specifier: workspace:*
+        version: link:../../packages/node
+      '@parser-stream/openai-compatible':
+        specifier: workspace:*
+        version: link:../../packages/openai-compatible
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      parser-stream:
+        specifier: workspace:*
+        version: link:../../packages/core
+
+  apps/worker:
+    dependencies:
+      '@parser-stream/app':
+        specifier: workspace:*
+        version: link:../../packages/app
+      '@parser-stream/gemini':
+        specifier: workspace:*
+        version: link:../../packages/gemini
+      '@parser-stream/workers':
+        specifier: workspace:*
+        version: link:../../packages/workers
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      parser-stream:
+        specifier: workspace:*
+        version: link:../../packages/core
+
+  packages/app:
+    dependencies:
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      parser-stream:
+        specifier: workspace:*
+        version: link:../core
+
+  packages/core:
+    dependencies:
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
+
+  packages/gemini:
+    dependencies:
+      '@parser-stream/parsebench':
+        specifier: workspace:*
+        version: link:../parsebench
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      parser-stream:
+        specifier: workspace:*
+        version: link:../core
+
+  packages/http:
+    dependencies:
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      parser-stream:
+        specifier: workspace:*
+        version: link:../core
+
+  packages/markdown:
+    dependencies:
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+
+  packages/node:
+    dependencies:
+      '@effect/platform-node':
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
+      '@parser-stream/app':
+        specifier: workspace:*
+        version: link:../app
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      html-rewriter-wasm:
+        specifier: ^0.4.1
+        version: 0.4.1
+      parser-stream:
+        specifier: workspace:*
+        version: link:../core
+
+  packages/openai-compatible:
+    dependencies:
+      '@parser-stream/markdown':
+        specifier: workspace:*
+        version: link:../markdown
+      '@parser-stream/parsebench':
+        specifier: workspace:*
+        version: link:../parsebench
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      parser-stream:
+        specifier: workspace:*
+        version: link:../core
+
+  packages/parsebench:
+    dependencies:
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      parser-stream:
+        specifier: workspace:*
+        version: link:../core
+
+  packages/testkit:
+    dependencies:
+      '@parser-stream/node':
+        specifier: workspace:*
+        version: link:../node
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      parser-stream:
+        specifier: workspace:*
+        version: link:../core
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
+
+  packages/workers:
+    dependencies:
+      '@parser-stream/app':
+        specifier: workspace:*
+        version: link:../app
+      effect:
+        specifier: 4.0.0-rc.115
+        version: 4.0.0-rc.115
+      parser-stream:
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 

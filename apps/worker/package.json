@@ -1,0 +1,21 @@
+{
+  "name": "@parser-stream/worker",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "apps/worker"
+  },
+  "private": true,
+  "description": "The Cloudflare host: a Worker plus one Durable Object per session.",
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "parser-stream": "workspace:*",
+    "@parser-stream/app": "workspace:*",
+    "@parser-stream/workers": "workspace:*",
+    "@parser-stream/gemini": "workspace:*"
+  }
+}

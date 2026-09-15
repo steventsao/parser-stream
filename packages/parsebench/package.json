@@ -1,0 +1,21 @@
+{
+  "name": "@parser-stream/parsebench",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "packages/parsebench"
+  },
+  "description": "The ParseBench layout contract: prompts, a Schema-typed LayoutElement, and its HTML renderer.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./Contract": "./src/Contract.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "parser-stream": "workspace:*"
+  }
+}

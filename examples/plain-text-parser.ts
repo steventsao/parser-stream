@@ -5,10 +5,10 @@
  */
 import { NodeRuntime } from "@effect/platform-node"
 import { Console, Effect, Layer, Stream } from "effect"
-import { Converter, Document, Html, Parser } from "../src/core/index.js"
-import { NodeSanitizer } from "../src/node/index.js"
+import { Converter, Document, Html, HtmlStream } from "parser-stream"
+import { NodeSanitizer } from "@parser-stream/node"
 
-const PlainTextParser = Parser.fromFunction("plain-text", (request) =>
+const PlainTextParser = HtmlStream.fromFunction("plain-text", (request) =>
   Stream.fromIterable(new TextDecoder().decode(request.source.bytes).split(/\n\s*\n/)).pipe(
     Stream.map((paragraph) => paragraph.trim()),
     Stream.filter((paragraph) => paragraph.length > 0),

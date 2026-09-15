@@ -1,0 +1,30 @@
+{
+  "name": "parser-stream",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "packages/core"
+  },
+  "description": "Stream a document into sanitized HTML blocks. The HtmlStream port and the streaming DOM engine.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./Converter": "./src/Converter.ts",
+    "./HtmlStream": "./src/HtmlStream.ts",
+    "./Credential": "./src/Credential.ts",
+    "./Sanitizer": "./src/Sanitizer.ts",
+    "./Source": "./src/Source.ts",
+    "./Splitter": "./src/Splitter.ts",
+    "./splitters/Pdf": "./src/splitters/Pdf.ts",
+    "./domain/Html": "./src/domain/Html.ts",
+    "./domain/Document": "./src/domain/Document.ts",
+    "./domain/Events": "./src/domain/Events.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "pdf-lib": "^1.17.1"
+  }
+}

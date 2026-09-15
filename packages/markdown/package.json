@@ -1,0 +1,19 @@
+{
+  "name": "@parser-stream/markdown",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "packages/markdown"
+  },
+  "description": "Markdown to HTML blocks, for parsers whose model answers in markdown.",
+  "exports": {
+    ".": "./src/Markdown.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115"
+  }
+}

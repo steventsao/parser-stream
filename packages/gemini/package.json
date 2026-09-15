@@ -1,0 +1,24 @@
+{
+  "name": "@parser-stream/gemini",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "packages/gemini"
+  },
+  "description": "Gemini plugins: the Flash + ParseBench layout parser, a direct-HTML parser, and the transport.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ParseBench": "./src/ParseBench.ts",
+    "./Html": "./src/Html.ts",
+    "./Transport": "./src/Transport.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "parser-stream": "workspace:*",
+    "@parser-stream/parsebench": "workspace:*"
+  }
+}

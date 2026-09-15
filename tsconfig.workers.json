@@ -5,6 +5,6 @@
     "types": ["@cloudflare/workers-types"],
     "noEmit": true
   },
-  "include": ["src/workers/worker.ts"],
+  "include": ["apps/worker/src/worker.ts"],
   "exclude": []
 }

@@ -11,11 +11,8 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "declaration": true,
-    "sourceMap": true,
-    "outDir": "dist",
     "noEmit": true
   },
-  "include": ["src", "test", "examples", "scripts"],
-  "exclude": ["src/workers/worker.ts"]
+  "include": ["packages/*/src", "packages/*/test", "apps/*/src", "examples", "scripts"],
+  "exclude": ["apps/worker/src/worker.ts"]
 }

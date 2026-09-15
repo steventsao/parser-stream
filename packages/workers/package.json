@@ -1,0 +1,22 @@
+{
+  "name": "@parser-stream/workers",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git",
+    "directory": "packages/workers"
+  },
+  "description": "Cloudflare adapters: the native HTMLRewriter sanitizer and a Durable Object session store.",
+  "exports": {
+    "./Sanitizer": "./src/Sanitizer.ts",
+    "./SessionStore": "./src/SessionStore.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "parser-stream": "workspace:*",
+    "@parser-stream/app": "workspace:*"
+  }
+}
