@@ -80,8 +80,8 @@ A parser is a `Stream` of HTML text. Chunks can split anywhere, even inside a ta
 
 ```ts
 import { Effect, Layer, Stream } from "effect"
-import { Converter, Document, Parser } from "@steventsao/parser-stream"
-import { NodeSanitizer } from "@steventsao/parser-stream/node"
+import { Converter, Document, Parser } from "parser-stream"
+import { NodeSanitizer } from "parser-stream/node"
 
 const MyParser = Parser.fromFunction("my-parser", ({ source, part }) =>
   Stream.fromIterable([`<h1>${source.mediaType}</h1>`, `<p>part ${part?.index ?? "all"}</p>`])
@@ -138,7 +138,7 @@ PARSER=http PARSER_URL=http://127.0.0.1:8000/parse pnpm cli convert examples/sam
 | `SessionStore` | keeps nothing; Durable Object storage on Workers | keep finished sessions in Redis or a database |
 | `ServerConfig` | `ServerConfig.layer({ ... })` | upload limits, media types, key field, allowed hosts |
 
-The core (`@steventsao/parser-stream`) is runtime-neutral. Node adapters are in `./node`; Workers adapters are in `./workers/*`, and `src/workers/worker.ts` is the deployable entry.
+The core (`parser-stream`) is runtime-neutral. Node adapters are in `./node`; Workers adapters are in `./workers/*`, and `src/workers/worker.ts` is the deployable entry.
 
 ## HTTP routes
 

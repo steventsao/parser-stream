@@ -1,5 +1,5 @@
 {
-  "name": "@steventsao/parser-stream",
+  "name": "parser-stream",
   "version": "0.1.0",
   "description": "Stream documents into clean, sanitized, semantic HTML. Bring your own key, or bring your own parser. Built with Effect.",
   "type": "module",
