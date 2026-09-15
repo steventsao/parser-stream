@@ -33,7 +33,7 @@ The core produces an event stream. HTTP with Server-Sent Events is one transport
 1. Implement the port: `HtmlStream.of({ name, parse })`, where `parse` returns `Stream<string, HtmlStreamError>`.
 2. Own your prompt, the shape you ask for, its decoding (use `Schema`), and the tags you emit.
 3. Read `Credential` for the caller's secret, and raise your own error when it is missing.
-4. Publish `layer(options)` and `layerConfig(options?)`, where `layerConfig` accepts `Config` values and falls back to your own environment variables, so a host can pick you with one line.
+4. Publish `layer(options)`, and a `layerConfig` that reads your own environment variables, so a host can pick you with one line. `make` and `layer` are Effect's names; keep to them and do not invent more.
 
 ## Rules
 

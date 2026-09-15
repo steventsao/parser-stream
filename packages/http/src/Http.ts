@@ -68,24 +68,12 @@ export const make = Effect.fn("HttpParser.make")(function*(options: HttpParserOp
 export const layer = (options: HttpParserOptions): Layer.Layer<HtmlStream, never, HttpClient.HttpClient> =>
   Layer.effect(HtmlStream, make(options))
 
-/**
- * The same parser, with its settings read from configuration. Defaults to
- * `PARSER_URL` and `PARSER_TOKEN`; pass your own `Config` values to read them
- * from somewhere else.
- */
-export const layerConfig = (
-  options?: {
-    readonly url?: Config.Config<string> | undefined
-    readonly token?: Config.Config<Redacted.Redacted<string> | undefined> | undefined
-  }
-): Layer.Layer<HtmlStream, Config.ConfigError, HttpClient.HttpClient> =>
-  Layer.effect(
-    HtmlStream,
-    Effect.gen(function*() {
-      const url = options?.url ? yield* options.url : (yield* Config.URL("PARSER_URL")).toString()
-      const token = options?.token
-        ? yield* options.token
-        : Option.getOrUndefined(yield* Config.option(Config.Redacted("PARSER_TOKEN")))
-      return yield* make({ url, token })
-    })
-  )
+/** The same parser, with `PARSER_URL` and `PARSER_TOKEN` read from the environment. */
+export const layerConfig: Layer.Layer<HtmlStream, Config.ConfigError, HttpClient.HttpClient> = Layer.effect(
+  HtmlStream,
+  Effect.gen(function*() {
+    const url = yield* Config.URL("PARSER_URL")
+    const token = yield* Config.option(Config.Redacted("PARSER_TOKEN"))
+    return yield* make({ url: url.toString(), token: Option.getOrUndefined(token) })
+  })
+)

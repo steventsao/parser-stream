@@ -80,26 +80,12 @@ export const make = Effect.fn("GeminiParser.make")(function*(options: GeminiOpti
 export const layer = (options: GeminiOptions = {}): Layer.Layer<HtmlStream, never, HttpClient.HttpClient> =>
   Layer.effect(HtmlStream, make(options))
 
-/**
- * The same parser, with its settings read from configuration. Defaults to
- * `GEMINI_API_KEY` and `GEMINI_MODEL`; pass your own `Config` values to read
- * them from somewhere else.
- */
-export const layerConfig = (
-  options?: {
-    readonly apiKey?: Config.Config<Redacted.Redacted<string> | undefined> | undefined
-    readonly model?: Config.Config<string> | undefined
-  }
-): Layer.Layer<HtmlStream, Config.ConfigError, HttpClient.HttpClient> =>
-  Layer.effect(
-    HtmlStream,
-    Effect.gen(function*() {
-      const apiKey = options?.apiKey
-        ? yield* options.apiKey
-        : Option.getOrUndefined(yield* Config.option(Config.Redacted("GEMINI_API_KEY")))
-      const model = options?.model
-        ? yield* options.model
-        : yield* Config.String("GEMINI_MODEL").pipe(Config.withDefault(DEFAULT_MODEL))
-      return yield* make({ apiKey, model })
-    })
-  )
+/** The same parser, with `GEMINI_API_KEY` and `GEMINI_MODEL` read from the environment. */
+export const layerConfig: Layer.Layer<HtmlStream, Config.ConfigError, HttpClient.HttpClient> = Layer.effect(
+  HtmlStream,
+  Effect.gen(function*() {
+    const apiKey = yield* Config.option(Config.Redacted("GEMINI_API_KEY"))
+    const model = yield* Config.String("GEMINI_MODEL").pipe(Config.withDefault(DEFAULT_MODEL))
+    return yield* make({ apiKey: Option.getOrUndefined(apiKey), model })
+  })
+)

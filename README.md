@@ -48,7 +48,7 @@ const program = Credential.provide(
 ).pipe(Effect.provide(FetchHttpClient.layer))
 ```
 
-In an app you never write that line: the server fills `Credential` from the upload. A script that would rather hold its own key can pass one to the plugin instead — `elements(source, { apiKey })`, the same option `layer({ apiKey })` takes — and `layerConfig()` reads `GEMINI_API_KEY` for you.
+In an app you never write that line: the server fills `Credential` from the upload. A script that would rather hold its own key can pass one to the plugin instead — `elements(source, { apiKey })`, the same option `layer({ apiKey })` takes — and `layerConfig` reads `GEMINI_API_KEY` for you.
 
 Multi-page PDFs are split into pages and converted in parallel, so page 3 can finish before page 1 without disturbing reading order. A page that fails after its retries shows an error in place.
 
