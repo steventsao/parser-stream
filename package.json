@@ -1,0 +1,49 @@
+{
+  "name": "@steventsao/parser-stream",
+  "version": "0.1.0",
+  "description": "Stream documents into clean, sanitized, semantic HTML. Bring your own key, or bring your own parser. Built with Effect.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Steven Tsao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventsao/parser-stream.git"
+  },
+  "keywords": ["pdf", "html", "parser", "streaming", "sse", "effect", "gemini", "byok"],
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "parser-stream": "./dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "cli": "tsx src/bin.ts"
+  },
+  "dependencies": {
+    "@effect/platform-node": "4.0.0-rc.115",
+    "effect": "4.0.0-rc.115",
+    "html-rewriter-wasm": "^0.4.1",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.0-rc.115",
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5.9",
+    "vitest": "^5.0.1"
+  }
+}
