@@ -1,18 +1,29 @@
-import { Effect, Layer, Redacted } from "effect"
+import { Effect, Layer, Option, Redacted, Stream } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { describe, expect, it } from "vitest"
 import { Routes, ServerConfig, type ServerOptions } from "../src/http/Routes.js"
-import type { ParseRequest } from "../src/Parser.js"
+import type { PartRef } from "../src/Parser.js"
+import { ParserCredential } from "../src/ParserCredential.js"
 import { Sessions } from "../src/Sessions.js"
 import { chunked, converterWith, makePdf } from "./fixtures.js"
 
+interface Seen {
+  readonly keys: Array<string | undefined>
+  readonly parts: Array<PartRef | undefined>
+}
+
 /** The same routes the Node server and the Durable Object run, driven through web Requests. */
-const webApp = (keyField: ServerOptions["keyField"], seen: Array<ParseRequest> = []) => {
+const webApp = (keyField: ServerOptions["keyField"], seen: Seen = { keys: [], parts: [] }) => {
   const sessions = Sessions.layer.pipe(
-    Layer.provide(converterWith((request) => {
-      seen.push(request)
-      return chunked(["<h1>Hello</h1>", "<p>World</p>"])
-    }))
+    Layer.provide(converterWith((request) =>
+      Stream.unwrap(Effect.gen(function*() {
+        // The parser reads its own credential; the engine never passes one.
+        const credential = yield* ParserCredential
+        seen.keys.push(Option.isSome(credential) ? Redacted.value(credential.value) : undefined)
+        seen.parts.push(request.part)
+        return chunked(["<h1>Hello</h1>", "<p>World</p>"])
+      }))
+    ))
   )
   const config = ServerConfig.layer({ allowedHosts: "any", keyField })
   return HttpRouter.toWebHandler(Routes.pipe(HttpRouter.provideRequest(Layer.mergeAll(sessions, config))), {
@@ -28,8 +39,8 @@ const pdfFile = async (name: string) => {
 const get = (app: ReturnType<typeof webApp>, path: string) => app.handler(new Request(`http://localhost${path}`))
 
 describe("web flow", () => {
-  it("redirects a form upload to a page that streams, using the caller's key", async () => {
-    const seen: Array<ParseRequest> = []
+  it("redirects a form upload to a page that streams, and hands the key to the parser", async () => {
+    const seen: Seen = { keys: [], parts: [] }
     const app = webApp("required", seen)
     const form = new FormData()
     form.set("file", await pdfFile("Field notes.pdf"))
@@ -52,21 +63,23 @@ describe("web flow", () => {
     expect(html).toContain(`<h1 id="block-1">Hello</h1>`)
     expect(html).toContain("<title>Field notes</title>")
 
-    expect(seen[0]?.credential && Redacted.value(seen[0].credential)).toBe("user-key")
+    // The key reached the parser inside the background conversion, and is in no snapshot.
+    expect(seen.keys).toEqual(["user-key"])
+    expect(seen.parts).toEqual([undefined])
     const snapshot = await (await get(app, `${location}/snapshot`)).text()
     expect(snapshot).not.toContain("user-key")
     await app.dispose()
   })
 
   it("asks for a key before any work when the server has none", async () => {
-    const seen: Array<ParseRequest> = []
+    const seen: Seen = { keys: [], parts: [] }
     const app = webApp("required", seen)
     const form = new FormData()
     form.set("file", await pdfFile("a.pdf"))
     const response = await app.handler(new Request("http://localhost/s", { method: "POST", body: form }))
     expect(response.status).toBe(400)
     expect(await response.text()).toContain("API key")
-    expect(seen).toHaveLength(0)
+    expect(seen.keys).toHaveLength(0)
     await app.dispose()
   })
 

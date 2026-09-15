@@ -4,6 +4,7 @@ import { Converter } from "../Converter.js"
 import type { Parser } from "../Parser.js"
 import * as GeminiParser from "../parsers/Gemini.js"
 import * as HttpParser from "../parsers/Http.js"
+import * as ParseBenchParser from "../parsers/ParseBench.js"
 import { Sessions } from "../Sessions.js"
 import * as NodeSanitizer from "./Sanitizer.js"
 
@@ -17,13 +18,21 @@ export class ConfigurationError extends Schema.TaggedError<ConfigurationError>()
 }) {}
 
 /**
- * `PARSER=gemini` (default; `GEMINI_API_KEY` is optional because callers can
- * bring their own key per request) or `PARSER=http` (needs `PARSER_URL`).
+ * `PARSER` picks the parser:
+ *
+ * - `parsebench` (default): the layout prompt with bounding boxes and DocLayNet labels.
+ * - `gemini-html`: ask Gemini for semantic HTML directly.
+ * - `http`: your own endpoint (needs `PARSER_URL`).
+ *
+ * `GEMINI_API_KEY` is optional, because callers can bring their own key per request.
  */
 export const ParserFromEnv: Layer.Layer<Parser, ConfigurationError | Config.ConfigError> = Layer.unwrap(
   Effect.gen(function*() {
-    const kind = yield* Config.Literals(["gemini", "http"], "PARSER").pipe(Config.withDefault("gemini"))
-    if (kind === "gemini") return GeminiParser.layerConfig
+    const kind = yield* Config.Literals(["parsebench", "gemini-html", "http"], "PARSER").pipe(
+      Config.withDefault("parsebench")
+    )
+    if (kind === "parsebench") return ParseBenchParser.layerConfig
+    if (kind === "gemini-html") return GeminiParser.layerConfig
     if (Option.isNone(yield* Config.option(Config.String("PARSER_URL")))) {
       return yield* new ConfigurationError({ message: "PARSER=http needs PARSER_URL." })
     }

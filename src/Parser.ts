@@ -1,4 +1,4 @@
-import { Context, Layer, type Redacted, Schema, type Stream } from "effect"
+import { Context, Layer, Schema, type Stream } from "effect"
 import type { Source } from "./Source.js"
 
 /**
@@ -8,6 +8,11 @@ import type { Source } from "./Source.js"
  * Chunks can split anywhere, even mid-tag: the converter buffers them, cuts out
  * complete top-level blocks, sanitizes each block, and assigns ids. A parser
  * that does not stream can emit its whole output as one chunk.
+ *
+ * The parser owns everything specific to it: its prompt, the shape it asks for,
+ * how it decodes that shape, which HTML tags the result uses, and which
+ * credentials it needs (see `ParserCredential`). The library never assumes a
+ * heading, a paragraph, or an API key.
  *
  * Interruption is structured: when the converter gives up on a request (idle
  * timeout, retry, or a closed client) the stream is interrupted, so release
@@ -25,14 +30,8 @@ export interface PartRef {
 
 export interface ParseRequest {
   readonly source: Source
-  /** Default instruction for vision-language models. Other parsers can ignore it. */
-  readonly prompt: string
+  /** Present when the source is one part of a larger document, absent for the whole thing. */
   readonly part: PartRef | undefined
-  /**
-   * A secret the caller supplied for this conversion only, for example their
-   * own API key. Prefer it over a key the parser was configured with.
-   */
-  readonly credential: Redacted.Redacted<string> | undefined
 }
 
 export class ParserError extends Schema.TaggedError<ParserError>()("ParserError", {

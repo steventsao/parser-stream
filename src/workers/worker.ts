@@ -4,7 +4,7 @@ import { FetchHttpClient, HttpRouter } from "effect/unstable/http"
 import { Converter } from "../Converter.js"
 import { PageRoutes, ServerConfig, SessionRoutes } from "../http/Routes.js"
 import { renderMessagePage } from "../http/Ui.js"
-import * as GeminiParser from "../parsers/Gemini.js"
+import * as ParseBenchParser from "../parsers/ParseBench.js"
 import { NewSessionId, Sessions } from "../Sessions.js"
 import * as WorkersSanitizer from "./Sanitizer.js"
 import * as DurableSessionStore from "./SessionStore.js"
@@ -40,7 +40,7 @@ export class SessionObject extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
-    const parser = GeminiParser.layer({
+    const parser = ParseBenchParser.layer({
       apiKey: env.GEMINI_API_KEY ? Redacted.make(env.GEMINI_API_KEY) : undefined,
       model: env.GEMINI_MODEL
     }).pipe(Layer.provide(FetchHttpClient.layer))

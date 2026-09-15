@@ -1,6 +1,7 @@
 import { Config, Effect, Layer, Option, Redacted, Stream } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { Parser, ParserError, type ParseRequest } from "../Parser.js"
+import { ParserCredential } from "../ParserCredential.js"
 
 /**
  * Bring your own parser, in any language, behind one HTTP endpoint.
@@ -8,16 +9,17 @@ import { Parser, ParserError, type ParseRequest } from "../Parser.js"
  *   POST {PARSER_URL}?unit=page&index=N&total=M   (no query for a whole source)
  *   content-type: {the source media type, for example application/pdf}
  *   accept: text/html
- *   authorization: Bearer {caller key or PARSER_TOKEN}   (only when one is set)
+ *   authorization: Bearer {the conversion's credential, or PARSER_TOKEN}
  *   body: the source bytes
  *
  * Respond 200 with HTML block elements. Stream the body (chunked) for live
- * output, or send it all at once. Any other status is a parser error.
+ * output, or send it all at once. Any other status is a parser error. Your
+ * endpoint owns its own prompt, model, and output shape.
  */
 
 export interface HttpParserOptions {
   readonly url: string
-  /** Used when a request brings no credential of its own. */
+  /** Used when a conversion brings no `ParserCredential`. */
   readonly token?: Redacted.Redacted<string> | undefined
 }
 
@@ -29,6 +31,7 @@ export const make = Effect.fn("HttpParser.make")(function*(options: HttpParserOp
 
   const parse = (request: ParseRequest): Stream.Stream<string, ParserError> =>
     Stream.unwrap(Effect.gen(function*() {
+      const supplied = yield* ParserCredential
       const target = new URL(options.url)
       if (request.part) {
         target.searchParams.set("unit", request.part.unit)
@@ -39,7 +42,7 @@ export const make = Effect.fn("HttpParser.make")(function*(options: HttpParserOp
         HttpClientRequest.setHeader("accept", "text/html"),
         HttpClientRequest.bodyUint8Array(request.source.bytes, request.source.mediaType)
       )
-      const token = request.credential ?? options.token
+      const token = Option.getOrUndefined(supplied) ?? options.token
       if (token) httpRequest = HttpClientRequest.bearerToken(httpRequest, Redacted.value(token))
       const response = yield* client.execute(httpRequest).pipe(
         Effect.mapError((error) => fail(`Request to the parser failed: ${error.message}`))
@@ -53,6 +56,7 @@ export const make = Effect.fn("HttpParser.make")(function*(options: HttpParserOp
         Stream.decodeText
       )
     })).pipe(
+      Stream.provideService(HttpClient.HttpClient, client),
       Stream.withSpan("HttpParser.parse", {
         attributes: { mediaType: request.source.mediaType, part: request.part?.index }
       })

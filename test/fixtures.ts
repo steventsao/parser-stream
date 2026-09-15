@@ -1,8 +1,10 @@
-import { Effect, Layer, Stream } from "effect"
+import { Effect, Layer, Option, Redacted, Stream } from "effect"
+import { HttpClient, HttpClientResponse } from "effect/unstable/http"
 import { PDFDocument } from "pdf-lib"
 import { Converter } from "../src/Converter.js"
 import * as NodeSanitizer from "../src/node/Sanitizer.js"
 import { Parser, ParserError, type ParseRequest } from "../src/Parser.js"
+import { provide } from "../src/ParserCredential.js"
 import type { Source } from "../src/Source.js"
 
 export const makePdf = (pages: number): Effect.Effect<Uint8Array> =>
@@ -35,3 +37,31 @@ export const converterWith = (parse: (request: ParseRequest) => Stream.Stream<st
   Converter.layer.pipe(Layer.provide([fakeParser(parse), NodeSanitizer.layer]))
 
 export const parserError = (message: string) => new ParserError({ parser: "fake", message })
+
+/** Run with (or without) a caller-supplied key, the way a server would. */
+export const withKey = <A, E, R>(effect: Effect.Effect<A, E, R>, key?: string): Effect.Effect<A, E, R> =>
+  provide(effect, key ? Option.some(Redacted.make(key)) : Option.none())
+
+export interface CapturedRequest {
+  url?: string
+  headers?: Record<string, string>
+  body?: Record<string, any>
+}
+
+/** An HttpClient that answers every request from `response` and records what was sent. */
+export const fakeGemini = (captured: CapturedRequest, response: () => Response) =>
+  Layer.succeed(HttpClient.HttpClient)(HttpClient.make((request, url) => {
+    captured.url = url.toString()
+    captured.headers = { ...request.headers }
+    const raw = (request.body as { body?: Uint8Array }).body
+    captured.body = raw ? JSON.parse(new TextDecoder().decode(raw)) : undefined
+    return Effect.succeed(HttpClientResponse.fromWeb(request, response()))
+  }))
+
+/** A Gemini SSE body that streams `texts` as one text delta each. */
+export const geminiSse = (...texts: Array<string>) =>
+  new Response(
+    texts.map((text) => `data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] })}\r\n\r\n`)
+      .join("") + `data: ${JSON.stringify({ usageMetadata: { totalTokenCount: 1 } })}\n\n`,
+    { headers: { "content-type": "text/event-stream" } }
+  )

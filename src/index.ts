@@ -14,11 +14,13 @@ export {
 export * as Document from "./domain/Document.js"
 export * as Events from "./domain/Events.js"
 export * as Html from "./domain/Html.js"
-export * as Prompt from "./domain/Prompt.js"
 export { PageRoutes, Routes, ServerConfig, type ServerOptions, SessionRoutes } from "./http/Routes.js"
 export { Parser, ParserError, type ParseRequest, type PartRef } from "./Parser.js"
+export * as ParserCredential from "./ParserCredential.js"
 export * as GeminiParser from "./parsers/Gemini.js"
+export * as GeminiTransport from "./parsers/GeminiTransport.js"
 export * as HttpParser from "./parsers/Http.js"
+export * as ParseBenchParser from "./parsers/ParseBench.js"
 export {
   type RewriterComment,
   type RewriterElement,

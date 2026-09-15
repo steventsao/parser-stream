@@ -57,13 +57,16 @@ describe("Converter split mode", () => {
       assert.deepStrictEqual(document.blocks.map((block) => block.id), ["page-1", "page-2", "page-3"])
       for (const [index, block] of document.blocks.entries()) {
         assert.include(block.html, `<h2>Part ${index + 1}</h2>`)
-        assert.include(block.html, `<div class="table-scroll"><table><tr><td>a</td></tr><tr><td>b</td></tr></table></div>`)
+        assert.include(
+          block.html,
+          `<div class="table-scroll"><table><tr><td>a</td></tr><tr><td>b</td></tr></table></div>`
+        )
         assert.notInclude(block.html, "script")
       }
     }).pipe(Effect.provide(converterWith((request) => {
       const part = request.part!
       assert.strictEqual(part.unit, "page")
-      assert.include(request.prompt, `page ${part.index} of 3`)
+      assert.strictEqual(part.total, 3)
       return chunked(partChunks(part.index), (part.total - part.index + 1) * 15)
     }))))
 

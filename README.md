@@ -5,16 +5,41 @@ Stream a document into clean, sanitized, semantic HTML, block by block, while th
 **Live demo: https://parser-stream.steventsao.workers.dev** — bring your own [Gemini API key](https://aistudio.google.com/apikey); it is used for your upload only and never stored. Anyone with a document's link can view it, and the demo deletes documents 7 days after they finish, so do not upload anything sensitive.
 
 - **Redirect, then stream.** Upload a file, land on its page right away, and watch it fill in.
-- **Bring your own key.** The default parser is Gemini, which reads PDFs and images natively. A key can come with each upload (never stored) or from the server.
-- **Bring your own parser.** Implement one function (`Source` in, HTML text stream out) in TypeScript, or put any parser in any language behind one HTTP endpoint.
-- **Not only PDFs.** Input is bytes plus a media type. PDFs get page-level parallelism through an optional splitter; everything else is parsed whole.
-- **Runs on Node or Cloudflare Workers.** Built with [Effect](https://effect.website) v4: every piece is a layer you can swap.
+- **Bring your own key.** A key can come with each upload (never stored) or from the server.
+- **Bring your own parser.** One port, one function.
+- **Not only PDFs.** Input is bytes plus a media type.
+- **Runs on Node or Cloudflare Workers.** Built with [Effect](https://effect.website) v4.
+
+## Three layers, one rule
+
+**Nothing above the parser knows how a parser works.**
 
 ```
-Source ─► Splitter? ─► Parser ─► block cutter ─► Sanitizer ─► ConvertEvent ─► Sessions ─► SSE / page / file
- bytes     (pages)     text      complete         allowlist    append /        seq log +
- + type                chunks    elements                      replace         fan-out
+┌─ Runtime ─────────────────────────────────────────────────────────────┐
+│  cut complete blocks · sanitize · number · fan out · persist · serve  │
+│  Converter · Sessions · routes        knows no tag, prompt, or key    │
+└───────────────────────────▲───────────────────────────────────────────┘
+        HTML text (chunks can split anywhere, even mid-tag)
+┌───────────────────────────┴───────────────────────────────────────────┐
+│  Parser: its prompt · the shape it asks for · decoding that shape     │
+│  with Schema · the tags it emits · the credential it needs            │
+│  ParseBenchParser · GeminiParser · HttpParser · yours                 │
+└───────────────────────────▲───────────────────────────────────────────┘
+                     Source: bytes + media type
 ```
+
+Every seam is an Effect service, so each one is a layer you swap:
+
+| Port | Default | Swap it to |
+|---|---|---|
+| `Parser` | `ParseBenchParser` | any model, OCR engine, or layout parser |
+| `Splitter` | `PdfSplitter` (pdf-lib pages) | slides, sheets, image sets; `Splitter.none` to never split |
+| `Sanitizer` | `NodeSanitizer` / the Workers `HTMLRewriter` | a tighter or wider allowlist |
+| `SessionStore` | nothing kept; Durable Object storage on Workers | Redis, a database |
+| `ServerConfig` | `ServerConfig.layer({ … })` | upload limits, media types, key field |
+| `ParserCredential` | none | the per-upload secret a parser reads |
+
+The engine passes no credentials. A parser that needs one reads `ParserCredential`, which the server fills from the upload, and raises its own error when it is missing.
 
 ## Quick start (Node)
 
@@ -28,7 +53,7 @@ pnpm install
 cp .env.example .env
 ```
 
-Put `GEMINI_API_KEY=...` in `.env` (get a key at https://aistudio.google.com/apikey), or leave it empty and paste a key in the upload form. Then start the demo on http://127.0.0.1:3000:
+Put `GEMINI_API_KEY=...` in `.env`, or leave it empty and paste a key in the upload form. Then start the demo on http://127.0.0.1:3000:
 
 ```bash
 pnpm cli serve
@@ -62,28 +87,46 @@ Watch a deployment convert a file, event by event:
 API_KEY=your-key scripts/smoke.sh https://parser-stream.<you>.workers.dev examples/sample.pdf
 ```
 
-## Modes
+## The default parser
 
-| Mode | What happens |
-|---|---|
-| `whole` | One parser request for the whole source. Each complete block is **appended** as it arrives. |
-| `split` | One request per part (per page for a PDF), `concurrency` at a time. An empty section per part is appended first, which pins reading order. Each part then **replaces** its own section as it streams, so parts can finish in any order. A part that fails after its retries shows an error in place. |
-| `auto` (default) | `split` when the splitter finds more than one part, else `whole`. |
+`ParseBenchParser` runs the layout prompt we use for [ParseBench](https://github.com/run-llama/ParseBench) runs on Gemini Flash: markdown content, HTML tables, and one `<div data-bbox data-label>` wrapper per layout element, labelled with the DocLayNet categories. The parser then decodes and renders it:
 
-A streaming part also paints the finished rows of a table that has not closed yet, so a long table does not stall the page.
+```
+Gemini  →  <div data-label="Title" data-bbox="[10,20,30,40]" data-page="1">Season Report</div>
+        →  LayoutElement { label: "Title", bbox: [10,20,30,40], page: 1, content: "Season Report" }   (Schema)
+        →  <h1 data-page="1" data-bbox="10,20,30,40">Season Report</h1>                               (render)
+```
+
+`LayoutLabel`, `LayoutBbox`, and `LayoutElement` are `Schema` types, so the shape is checked, and an unknown label or a malformed box degrades to `Text` instead of failing the conversion. `render` is the only code that picks a tag: `Title` → `<h1>`, `Section-header` → `<h2>`, `List-item` → grouped `<ul>`, `Picture` → `<figure>`, `Table` → the model's own table, and running headers and footers are dropped.
+
+Take the typed elements for your own use (crops, search indexes, evaluation) without any HTML:
+
+```ts
+import { Effect, Redacted, Stream } from "effect"
+import { ParseBenchParser } from "parser-stream"
+
+const elements = ParseBenchParser.elements(
+  { bytes, mediaType: "application/pdf" },
+  { apiKey: Redacted.make(process.env.GEMINI_API_KEY!) }
+)
+
+Stream.runForEach(elements, (element) => Effect.log(`${element.label} ${element.bbox?.join(",") ?? ""}`))
+```
+
+`GeminiParser` is the simpler alternative: it asks for semantic HTML directly, with no boxes on text.
 
 ## Bring your own parser
 
 ### In TypeScript
 
-A parser is a `Stream` of HTML text. Chunks can split anywhere, even inside a tag: the converter buffers them, cuts out complete top-level elements, sanitizes each one, and assigns ids.
+A parser is a `Stream` of HTML text. Chunks can split anywhere: the runtime buffers them, cuts out complete top-level elements, sanitizes each one, and assigns ids.
 
 ```ts
 import { Effect, Layer, Stream } from "effect"
 import { Converter, Document, Parser } from "parser-stream"
 import { NodeSanitizer } from "parser-stream/node"
 
-const MyParser = Parser.fromFunction("my-parser", ({ source, part }) =>
+const MyParser = Parser.fromFunction("my-parser", ({ part, source }) =>
   Stream.fromIterable([`<h1>${source.mediaType}</h1>`, `<p>part ${part?.index ?? "all"}</p>`])
 )
 
@@ -94,14 +137,7 @@ const program = Effect.gen(function*() {
 }).pipe(Effect.provide(Converter.layer.pipe(Layer.provide([MyParser, NodeSanitizer.layer]))))
 ```
 
-`ParseRequest` has four fields:
-
-- `source`: `{ bytes, mediaType, name? }`
-- `prompt`: a default instruction for vision-language models (ignore it if you are not one)
-- `part`: `{ unit, index, total }` when the source is one part of a larger document
-- `credential`: the caller's own key for this conversion, when they sent one
-
-See `src/parsers/Gemini.ts` for a streaming model parser, and `examples/plain-text-parser.ts` for a parser that has nothing to do with PDFs.
+`ParseRequest` has two fields: `source` (`{ bytes, mediaType, name? }`) and `part` (`{ unit, index, total }`, set when the source is one part of a larger document). Read `ParserCredential` for the caller's secret. See `examples/plain-text-parser.ts` for a parser with no model at all.
 
 ### Over HTTP, in any language
 
@@ -111,7 +147,7 @@ Set `PARSER=http` and `PARSER_URL`. For each source (or part) the converter send
 POST {PARSER_URL}?unit=page&index=3&total=12     (no query for a whole source)
 content-type: application/pdf                    (the source media type)
 accept: text/html
-authorization: Bearer {caller key or PARSER_TOKEN}
+authorization: Bearer {the upload's key or PARSER_TOKEN}
 
 <source bytes>
 ```
@@ -128,17 +164,17 @@ Then, in a second terminal:
 PARSER=http PARSER_URL=http://127.0.0.1:8000/parse pnpm cli convert examples/sample.pdf
 ```
 
-### Layers
+`PARSER` selects the parser: `parsebench` (default), `gemini-html`, or `http`.
 
-| Service | Default layer | Replace it to |
-|---|---|---|
-| `Parser` | `GeminiParser.layer` / `HttpParser.layer` | use another model, OCR engine, or layout parser |
-| `Splitter` | `PdfSplitter.layer` (pdf-lib, inside `Converter.layer`) | split slides, sheets, or image sets; `Splitter.none` disables splitting |
-| `Sanitizer` | `NodeSanitizer.layer` (lol-html) or the Workers `HTMLRewriter` layer | tighten or extend the allowlist |
-| `SessionStore` | keeps nothing; Durable Object storage on Workers | keep finished sessions in Redis or a database |
-| `ServerConfig` | `ServerConfig.layer({ ... })` | upload limits, media types, key field, allowed hosts |
+## Modes
 
-The core (`parser-stream`) is runtime-neutral. Node adapters are in `./node`; Workers adapters are in `./workers/*`, and `src/workers/worker.ts` is the deployable entry.
+| Mode | What happens |
+|---|---|
+| `whole` | One parser request for the whole source. Each complete block is **appended** as it arrives. |
+| `split` | One request per part (per page for a PDF), `concurrency` at a time. An empty section per part is appended first, which pins reading order. Each part then **replaces** its own section as it streams, so parts can finish in any order. A part that fails after its retries shows an error in place. |
+| `auto` (default) | `split` when the splitter finds more than one part, else `whole`. |
+
+A streaming part also paints the finished rows of a table that has not closed yet, so a long table does not stall the page.
 
 ## HTTP routes
 
@@ -178,7 +214,7 @@ Parser output is derived from an untrusted document, and prompt instructions are
 
 - Every block crosses an allowlist sanitizer. It removes scripts, event handlers, styles, ids, and `javascript:`/`data:` URLs.
 - Pages send a strict Content-Security-Policy (`script-src 'self'`, no inline scripts, no remote images).
-- A key sent with an upload is held in memory for that conversion only. It is not stored, logged, or included in snapshots. "Remember the key" is opt-in and stays in that browser's `localStorage`.
+- A key sent with an upload lives in memory for that conversion only. It is not stored, logged, or included in snapshots. "Remember the key" is opt-in and stays in that browser's `localStorage`.
 - Session URLs are unguessable ids. Anyone with the URL can view the document.
 - `serve` binds to `127.0.0.1` and rejects unknown `Host` headers, which blocks DNS rebinding.
 - You are responsible for having the rights to the documents you convert.

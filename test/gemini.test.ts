@@ -1,75 +1,61 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Layer, Redacted, Stream } from "effect"
-import { HttpClient, HttpClientResponse } from "effect/unstable/http"
+import { Parser } from "../src/Parser.js"
 import * as GeminiParser from "../src/parsers/Gemini.js"
-import { Parser, type ParseRequest } from "../src/Parser.js"
-import { imageSource } from "./fixtures.js"
+import { type CapturedRequest, fakeGemini, geminiSse, imageSource, withKey } from "./fixtures.js"
 
-interface Captured {
-  url?: string
-  headers?: Record<string, string>
-}
-
-const fakeGemini = (captured: Captured, response: () => Response) =>
-  Layer.succeed(HttpClient.HttpClient)(HttpClient.make((request, url) => {
-    captured.url = url.toString()
-    captured.headers = { ...request.headers }
-    return Effect.succeed(HttpClientResponse.fromWeb(request, response()))
-  }))
-
-const sse = (...texts: Array<string>) =>
-  new Response(
-    texts.map((text) => `data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] })}\r\n\r\n`)
-      .join("") + `data: ${JSON.stringify({ usageMetadata: { totalTokenCount: 1 } })}\n\n`,
-    { headers: { "content-type": "text/event-stream" } }
-  )
-
-const parserLayer = (options: GeminiParser.GeminiOptions, captured: Captured, response: () => Response) =>
-  GeminiParser.layer({ model: "gemini-test", ...options }).pipe(Layer.provide(fakeGemini(captured, response)))
-
-const request = (credential?: string): ParseRequest => ({
-  source: imageSource,
-  prompt: "convert",
-  part: undefined,
-  credential: credential ? Redacted.make(credential) : undefined
-})
-
-const parse = Effect.fn("parse")(function*(input: ParseRequest) {
+const collect = Effect.gen(function*() {
   const parser = yield* Parser
-  return yield* Stream.runCollect(parser.parse(input))
+  return yield* Stream.runCollect(parser.parse({ source: imageSource, part: undefined }))
 })
+
+const parserLayer = (
+  options: GeminiParser.GeminiOptions,
+  captured: CapturedRequest,
+  response: () => Response
+) => GeminiParser.layer({ model: "gemini-test", ...options }).pipe(Layer.provide(fakeGemini(captured, response)))
 
 describe("GeminiParser", () => {
-  const configured: Captured = {}
-  it.effect("streams text out of SSE events, with the key in a header", () =>
-    Effect.gen(function*() {
-      assert.deepStrictEqual(yield* parse(request()), ["<h1>Hi", "</h1>"])
+  it.effect("streams text out of SSE events, with the key in a header", () => {
+    const captured: CapturedRequest = {}
+    return Effect.gen(function*() {
+      assert.deepStrictEqual(yield* collect, ["<h1>Hi", "</h1>"])
       assert.strictEqual(
-        configured.url,
+        captured.url,
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-test:streamGenerateContent?alt=sse"
       )
-      assert.strictEqual(configured.headers?.["x-goog-api-key"], "server-key")
-      assert.notInclude(configured.url ?? "", "server-key")
-    }).pipe(Effect.provide(parserLayer({ apiKey: Redacted.make("server-key") }, configured, () => sse("<h1>Hi", "</h1>")))))
+      assert.strictEqual(captured.headers?.["x-goog-api-key"], "server-key")
+      assert.notInclude(captured.url ?? "", "server-key")
+      assert.include(captured.body?.["contents"][0].parts[1].text, "semantic HTML")
+    }).pipe(
+      Effect.provide(
+        parserLayer({ apiKey: Redacted.make("server-key") }, captured, () => geminiSse("<h1>Hi", "</h1>"))
+      )
+    )
+  })
 
-  const override: Captured = {}
-  it.effect("prefers the caller's own key", () =>
-    Effect.gen(function*() {
-      yield* parse(request("caller-key"))
-      assert.strictEqual(override.headers?.["x-goog-api-key"], "caller-key")
-    }).pipe(Effect.provide(parserLayer({ apiKey: Redacted.make("server-key") }, override, () => sse("<p>x</p>")))))
+  it.effect("prefers the key the conversion brought", () => {
+    const captured: CapturedRequest = {}
+    return Effect.gen(function*() {
+      yield* withKey(collect, "caller-key")
+      assert.strictEqual(captured.headers?.["x-goog-api-key"], "caller-key")
+    }).pipe(
+      Effect.provide(parserLayer({ apiKey: Redacted.make("server-key") }, captured, () => geminiSse("<p>x</p>")))
+    )
+  })
 
-  const keyless: Captured = {}
-  it.effect("fails before any request when there is no key", () =>
-    Effect.gen(function*() {
-      const error = yield* parse(request()).pipe(Effect.flip)
+  it.effect("fails before any request when there is no key", () => {
+    const captured: CapturedRequest = {}
+    return Effect.gen(function*() {
+      const error = yield* collect.pipe(Effect.flip)
       assert.include(error.message, "No Gemini API key")
-      assert.isUndefined(keyless.url)
-    }).pipe(Effect.provide(parserLayer({}, keyless, () => sse("<p>x</p>")))))
+      assert.isUndefined(captured.url)
+    }).pipe(Effect.provide(parserLayer({}, captured, () => geminiSse("<p>x</p>"))))
+  })
 
   it.effect("turns an HTTP error into a ParserError", () =>
     Effect.gen(function*() {
-      const error = yield* parse(request("k")).pipe(Effect.flip)
+      const error = yield* withKey(collect, "k").pipe(Effect.flip)
       assert.strictEqual(error._tag, "ParserError")
       assert.include(error.message, "HTTP 429")
       assert.include(error.message, "quota")

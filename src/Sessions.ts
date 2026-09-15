@@ -38,7 +38,6 @@ export interface SessionSnapshot extends SessionInfo, DocumentState {}
 export interface CreateSession {
   readonly source: Source
   readonly title: string
-  /** Includes `credential`, which stays in memory for this conversion and is never stored. */
   readonly options?: Partial<ConvertOptions> | undefined
 }
 
@@ -153,8 +152,12 @@ const make = Effect.gen(function*() {
       initialState,
       []
     )
+    // The conversion runs in the background, so it keeps the caller's context.
+    // That is how a per-request value such as a `ParserCredential` reaches the
+    // parser without this service knowing anything about it.
+    const context = yield* Effect.context<never>()
 
-    const run = converter.convert(input.source, input.options).pipe(
+    const pipeline = converter.convert(input.source, input.options).pipe(
       Stream.runForEach((event) => commit(session, event)),
       Effect.andThen(commit(session, { type: "done" })),
       Effect.catchCause((cause) =>
@@ -169,7 +172,7 @@ const make = Effect.gen(function*() {
       ),
       Effect.withSpan("Sessions.run", { attributes: { session: session.info.id } })
     )
-    yield* FiberSet.run(fibers)(run)
+    yield* FiberSet.run(fibers)(Effect.provideContext(pipeline, context))
     return session.info
   })
 

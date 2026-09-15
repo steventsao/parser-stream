@@ -1,4 +1,4 @@
-import { Clock, Context, Effect, Layer, Option, type Redacted, Schedule, Schema, Stream } from "effect"
+import { Clock, Context, Effect, Layer, Option, Schedule, Schema, Stream } from "effect"
 import {
   type DocumentInput,
   type DocumentState,
@@ -15,12 +15,10 @@ import {
   isCompleteElement,
   normalizeBlocks,
   provisionalTail,
-  stampFigurePage,
   stripFence,
   withRootId,
   wrapTable
 } from "./domain/Html.js"
-import { partPrompt, WHOLE_PROMPT } from "./domain/Prompt.js"
 import { Parser, type ParserError, type PartRef } from "./Parser.js"
 import { type SanitizeError, Sanitizer } from "./Sanitizer.js"
 import type { Source } from "./Source.js"
@@ -29,7 +27,9 @@ import * as PdfSplitter from "./splitters/Pdf.js"
 
 /**
  * The conversion engine. It depends only on three ports (`Parser`,
- * `Sanitizer`, `Splitter`) and emits `ConvertEvent`s.
+ * `Sanitizer`, `Splitter`) and emits `ConvertEvent`s. It knows nothing about
+ * prompts, models, credentials, or which HTML tags a parser produces: it cuts
+ * complete blocks out of the stream, sanitizes them, and numbers them.
  *
  * - `whole`: one parser request for the whole source. Each complete block is
  *   appended as it arrives.
@@ -62,8 +62,6 @@ export interface ConvertOptions {
   readonly paintGrowth: number
   readonly paintMinIntervalMs: number
   readonly paintMaxQuietMs: number
-  /** Passed to every parser request of this conversion, for example the caller's own API key. */
-  readonly credential: Redacted.Redacted<string> | undefined
 }
 
 export const defaultOptions: ConvertOptions = {
@@ -74,8 +72,7 @@ export const defaultOptions: ConvertOptions = {
   maxParts: 100,
   paintGrowth: 1.25,
   paintMinIntervalMs: 120,
-  paintMaxQuietMs: 1_200,
-  credential: undefined
+  paintMaxQuietMs: 1_200
 }
 
 export class PartLimitError extends Schema.TaggedError<PartLimitError>()("PartLimitError", {
@@ -153,7 +150,7 @@ const make = Effect.gen(function*() {
         buffer = ""
         return tail ? appendAll([tail]) : Effect.succeed([])
       })
-      return parser.parse({ source, prompt: WHOLE_PROMPT, part: undefined, credential: options.credential }).pipe(
+      return parser.parse({ source, part: undefined }).pipe(
         failIfIdle(options, "The parser"),
         Stream.mapEffect((delta) => {
           const { blocks, rest } = extractBlocks(buffer + delta)
@@ -199,9 +196,7 @@ const make = Effect.gen(function*() {
 
       const accept = (raw: string) =>
         Effect.map(sanitizer.sanitize(raw), (clean) => {
-          for (const block of normalizeBlocks(clean)) {
-            children.push(wrapTable(part.unit === "page" ? stampFigurePage(block, part.index) : block))
-          }
+          for (const block of normalizeBlocks(clean)) children.push(wrapTable(block))
           provisional = undefined
           provisionalChildren = 0
         })
@@ -234,7 +229,7 @@ const make = Effect.gen(function*() {
         return [paint(yield* Clock.currentTimeMillis)]
       })
 
-      return parser.parse({ source, prompt: partPrompt(part), part, credential: options.credential }).pipe(
+      return parser.parse({ source, part }).pipe(
         failIfIdle(options, `${part.unit} ${part.index}`),
         Stream.mapEffect(onDelta),
         Stream.concat(Stream.fromEffect(finish)),
