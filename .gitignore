@@ -7,3 +7,5 @@ coverage
 *.log
 .DS_Store
 out/
+packages/*/dist
+packages/*/*.tsbuildinfo

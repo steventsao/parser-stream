@@ -203,7 +203,13 @@ pnpm typecheck
 pnpm test
 ```
 
+```bash
+pnpm build
+```
+
 Tests never call a live model: they use `HtmlStream.fromFunction` and a fake `HttpClient` from `@parser-stream/testkit`.
+
+Inside this repo every package resolves to its own source, so a change is visible without a build. `pnpm build` is a TypeScript project-reference build (`tsc -b`) that emits `dist` per package, and each package's `publishConfig` points `exports` at that `dist`, so an installed package serves built JavaScript and declarations. Nothing is published to npm yet.
 
 The [open issues](https://github.com/steventsao/parser-stream/issues) come from checking the port against the whole ParseBench parser variety: an image splitter for local VLMs, plugin capabilities, timeout and retry rules for plugins that answer only once, a subprocess adapter, typed structured output, and usage reporting.
 

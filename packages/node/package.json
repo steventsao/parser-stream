@@ -21,5 +21,29 @@
     "@parser-stream/app": "workspace:*",
     "html-rewriter-wasm": "^0.4.1",
     "@effect/platform-node": "4.0.0-rc.115"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./Sanitizer": {
+        "types": "./dist/Sanitizer.d.ts",
+        "default": "./dist/Sanitizer.js"
+      },
+      "./Server": {
+        "types": "./dist/Server.d.ts",
+        "default": "./dist/Server.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json"
   }
 }

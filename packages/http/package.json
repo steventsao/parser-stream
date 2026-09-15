@@ -16,5 +16,21 @@
   "dependencies": {
     "effect": "4.0.0-rc.115",
     "parser-stream": "workspace:*"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/Http.d.ts",
+        "default": "./dist/Http.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json"
   }
 }

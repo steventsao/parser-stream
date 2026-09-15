@@ -16,7 +16,9 @@
     "test": "vitest run",
     "cli": "tsx apps/cli/src/bin.ts",
     "deploy": "wrangler deploy --config apps/worker/wrangler.toml",
-    "sample-pdf": "tsx scripts/sample-pdf.ts"
+    "sample-pdf": "tsx scripts/sample-pdf.ts",
+    "build": "tsc -b tsconfig.build.json",
+    "clean": "tsc -b tsconfig.build.json --clean"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260915.1",

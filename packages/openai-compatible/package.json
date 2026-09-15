@@ -18,5 +18,21 @@
     "parser-stream": "workspace:*",
     "@parser-stream/parsebench": "workspace:*",
     "@parser-stream/markdown": "workspace:*"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/OpenAiCompatible.d.ts",
+        "default": "./dist/OpenAiCompatible.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json"
   }
 }

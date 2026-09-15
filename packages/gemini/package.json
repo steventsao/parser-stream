@@ -20,5 +20,33 @@
     "effect": "4.0.0-rc.115",
     "parser-stream": "workspace:*",
     "@parser-stream/parsebench": "workspace:*"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./ParseBench": {
+        "types": "./dist/ParseBench.d.ts",
+        "default": "./dist/ParseBench.js"
+      },
+      "./Html": {
+        "types": "./dist/Html.d.ts",
+        "default": "./dist/Html.js"
+      },
+      "./Transport": {
+        "types": "./dist/Transport.d.ts",
+        "default": "./dist/Transport.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json"
   }
 }

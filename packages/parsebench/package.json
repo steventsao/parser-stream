@@ -17,5 +17,25 @@
   "dependencies": {
     "effect": "4.0.0-rc.115",
     "parser-stream": "workspace:*"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./Contract": {
+        "types": "./dist/Contract.d.ts",
+        "default": "./dist/Contract.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json"
   }
 }

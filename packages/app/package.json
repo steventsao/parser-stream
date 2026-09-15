@@ -19,5 +19,33 @@
   "dependencies": {
     "effect": "4.0.0-rc.115",
     "parser-stream": "workspace:*"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./Sessions": {
+        "types": "./dist/Sessions.d.ts",
+        "default": "./dist/Sessions.js"
+      },
+      "./Routes": {
+        "types": "./dist/Routes.d.ts",
+        "default": "./dist/Routes.js"
+      },
+      "./Ui": {
+        "types": "./dist/Ui.d.ts",
+        "default": "./dist/Ui.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json"
   }
 }

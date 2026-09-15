@@ -43,4 +43,5 @@ The core produces an event stream. HTTP with Server-Sent Events is one transport
 - A caller's key stays in memory. Never store, log, or return it.
 - Route handlers only see services the router tracks: use `Context.Service` (not `Context.Reference`) for anything they read, and `HttpRouter.provideRequest` with `toWebHandler`.
 - Tests live in `packages/*/test`, never call a live model, and use `@parser-stream/testkit`.
-- Run `pnpm typecheck` and `pnpm test` before you commit. Deploy with `pnpm run deploy`.
+- A package's `exports` point at `src` for development; its `publishConfig.exports` point at `dist`. Keep both in step when you add a subpath, and give the new project a `references` entry in its `tsconfig.build.json`.
+- Run `pnpm typecheck` and `pnpm test` before you commit, and `pnpm build` when you touch a package boundary. Deploy with `pnpm run deploy`.

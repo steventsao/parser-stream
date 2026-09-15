@@ -18,5 +18,25 @@
     "effect": "4.0.0-rc.115",
     "parser-stream": "workspace:*",
     "@parser-stream/app": "workspace:*"
+  },
+  "publishConfig": {
+    "exports": {
+      "./Sanitizer": {
+        "types": "./dist/Sanitizer.d.ts",
+        "default": "./dist/Sanitizer.js"
+      },
+      "./SessionStore": {
+        "types": "./dist/SessionStore.d.ts",
+        "default": "./dist/SessionStore.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json"
   }
 }

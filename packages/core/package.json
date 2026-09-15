@@ -26,5 +26,61 @@
   "dependencies": {
     "effect": "4.0.0-rc.115",
     "pdf-lib": "^1.17.1"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./Converter": {
+        "types": "./dist/Converter.d.ts",
+        "default": "./dist/Converter.js"
+      },
+      "./HtmlStream": {
+        "types": "./dist/HtmlStream.d.ts",
+        "default": "./dist/HtmlStream.js"
+      },
+      "./Credential": {
+        "types": "./dist/Credential.d.ts",
+        "default": "./dist/Credential.js"
+      },
+      "./Sanitizer": {
+        "types": "./dist/Sanitizer.d.ts",
+        "default": "./dist/Sanitizer.js"
+      },
+      "./Source": {
+        "types": "./dist/Source.d.ts",
+        "default": "./dist/Source.js"
+      },
+      "./Splitter": {
+        "types": "./dist/Splitter.d.ts",
+        "default": "./dist/Splitter.js"
+      },
+      "./splitters/Pdf": {
+        "types": "./dist/splitters/Pdf.d.ts",
+        "default": "./dist/splitters/Pdf.js"
+      },
+      "./domain/Html": {
+        "types": "./dist/domain/Html.d.ts",
+        "default": "./dist/domain/Html.js"
+      },
+      "./domain/Document": {
+        "types": "./dist/domain/Document.d.ts",
+        "default": "./dist/domain/Document.js"
+      },
+      "./domain/Events": {
+        "types": "./dist/domain/Events.d.ts",
+        "default": "./dist/domain/Events.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json"
   }
 }

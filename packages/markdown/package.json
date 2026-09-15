@@ -15,5 +15,21 @@
   },
   "dependencies": {
     "effect": "4.0.0-rc.115"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/Markdown.d.ts",
+        "default": "./dist/Markdown.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json"
   }
 }

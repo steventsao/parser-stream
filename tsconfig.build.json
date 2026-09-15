@@ -1,0 +1,32 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/core/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/parsebench/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/gemini/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/markdown/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/openai-compatible/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/http/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/app/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/node/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/workers/tsconfig.build.json"
+    }
+  ]
+}
