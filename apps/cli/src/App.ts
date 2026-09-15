@@ -32,18 +32,18 @@ export const HtmlStreamFromEnv: Layer.Layer<HtmlStream, ConfigurationError | Con
     const kind = yield* Config.Literals(["gemini-parsebench", "gemini-html", "openai", "http"], "PARSER").pipe(
       Config.withDefault("gemini-parsebench")
     )
-    if (kind === "gemini-parsebench") return GeminiFlashParseBenchParser.layerConfig
-    if (kind === "gemini-html") return GeminiHtmlParser.layerConfig
+    if (kind === "gemini-parsebench") return GeminiFlashParseBenchParser.layerConfig()
+    if (kind === "gemini-html") return GeminiHtmlParser.layerConfig()
     if (kind === "openai") {
       if (Option.isNone(yield* Config.option(Config.String("OPENAI_BASE_URL")))) {
         return yield* new ConfigurationError({ message: "PARSER=openai needs OPENAI_BASE_URL and OPENAI_MODEL." })
       }
-      return OpenAiCompatibleParser.layerConfig
+      return OpenAiCompatibleParser.layerConfig()
     }
     if (Option.isNone(yield* Config.option(Config.String("PARSER_URL")))) {
       return yield* new ConfigurationError({ message: "PARSER=http needs PARSER_URL." })
     }
-    return HttpParser.layerConfig
+    return HttpParser.layerConfig()
   })
 ).pipe(Layer.provide(FetchHttpClient.layer))
 

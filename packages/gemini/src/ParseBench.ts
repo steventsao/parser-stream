@@ -1,5 +1,5 @@
 import * as ParseBench from "@parser-stream/parsebench"
-import { Config, Effect, Layer, Option, type Redacted, Stream } from "effect"
+import { Config, Effect, Layer, Option, Redacted, Stream } from "effect"
 import { HttpClient } from "effect/unstable/http"
 import { Credential } from "parser-stream/Credential"
 import { extractBlocks } from "parser-stream/domain/Html"
@@ -11,6 +11,10 @@ import * as Transport from "./Transport.js"
  * Gemini Flash plus the ParseBench layout contract: the parser this project
  * ships. The transport is here, the contract is in `@parser-stream/parsebench`,
  * and the core knows neither.
+ *
+ * The key can come from three places, in this order: the conversion's
+ * `Credential` (what a server fills in from an upload), this layer's options,
+ * or `GEMINI_API_KEY` through `layerConfig`.
  */
 
 export const DEFAULT_MODEL = "gemini-3-flash-preview"
@@ -27,20 +31,31 @@ export interface GeminiFlashParseBenchOptions extends ParseBench.RenderOptions {
   readonly thinkingBudget?: number | undefined
 }
 
-/** The typed element stream: labels and boxes, before any HTML. */
+const missingKey = new HtmlStreamError({
+  parser: "gemini-parsebench",
+  message: "No Gemini API key. Bring your own key, or set GEMINI_API_KEY on the server."
+})
+
+/**
+ * The typed element stream: labels and boxes, before any HTML.
+ *
+ * The key is optional here for the same reason it is optional on the layer: a
+ * caller who runs inside a request provides it once with `Credential.provide`,
+ * and this reads it from there.
+ */
 export const elements = (
   source: Source,
-  options: GeminiFlashParseBenchOptions & {
-    readonly apiKey: Redacted.Redacted<string>
-    readonly part?: PartRef | undefined
-  }
+  options: GeminiFlashParseBenchOptions & { readonly part?: PartRef | undefined } = {}
 ): Stream.Stream<ParseBench.LayoutElement, HtmlStreamError, HttpClient.HttpClient> =>
-  Stream.suspend(() => {
+  Stream.unwrap(Effect.gen(function*() {
+    const supplied = yield* Credential
+    const apiKey = Option.getOrUndefined(supplied) ?? options.apiKey
+    if (!apiKey) return Stream.fail(missingKey)
     let buffer = ""
     const { prompt, systemInstruction } = ParseBench.promptsFor(options.part)
     return Transport.stream({
       parser: "gemini-parsebench",
-      apiKey: options.apiKey,
+      apiKey,
       model: options.model ?? DEFAULT_MODEL,
       baseUrl: options.baseUrl,
       source,
@@ -65,27 +80,17 @@ export const elements = (
       Stream.flattenIterable,
       Stream.mapEffect(ParseBench.decodeDiv)
     )
-  })
+  }))
 
 /** Build the parser. Requires an `HttpClient`. */
-export const make = Effect.fn("GeminiFlashParseBench.make")(function*(options: GeminiFlashParseBenchOptions) {
+export const make = Effect.fn("GeminiFlashParseBench.make")(function*(
+  options: GeminiFlashParseBenchOptions = {}
+) {
   const client = yield* HttpClient.HttpClient
   const model = options.model ?? DEFAULT_MODEL
 
   const parse = (request: HtmlStreamRequest): Stream.Stream<string, HtmlStreamError> =>
-    Stream.unwrap(Effect.gen(function*() {
-      const supplied = yield* Credential
-      const apiKey = Option.getOrUndefined(supplied) ?? options.apiKey
-      if (!apiKey) {
-        return Stream.fail(
-          new HtmlStreamError({
-            parser: "gemini-parsebench",
-            message: "No Gemini API key. Bring your own key, or set GEMINI_API_KEY on the server."
-          })
-        )
-      }
-      return ParseBench.toHtml(elements(request.source, { ...options, apiKey, part: request.part }), options)
-    })).pipe(
+    ParseBench.toHtml(elements(request.source, { ...options, part: request.part }), options).pipe(
       Stream.provideService(HttpClient.HttpClient, client),
       Stream.withSpan("GeminiFlashParseBench.parse", {
         attributes: { model, mediaType: request.source.mediaType, part: request.part?.index }
@@ -99,12 +104,28 @@ export const layer = (
   options: GeminiFlashParseBenchOptions = {}
 ): Layer.Layer<HtmlStream, never, HttpClient.HttpClient> => Layer.effect(HtmlStream, make(options))
 
-/** Layer from the optional `GEMINI_API_KEY` and `GEMINI_MODEL`. */
-export const layerConfig: Layer.Layer<HtmlStream, Config.ConfigError, HttpClient.HttpClient> = Layer.effect(
-  HtmlStream,
-  Effect.gen(function*() {
-    const apiKey = yield* Config.option(Config.Redacted("GEMINI_API_KEY"))
-    const model = yield* Config.String("GEMINI_MODEL").pipe(Config.withDefault(DEFAULT_MODEL))
-    return yield* make({ apiKey: Option.getOrUndefined(apiKey), model })
-  })
-)
+/**
+ * The same parser, with its settings read from configuration. Defaults to
+ * `GEMINI_API_KEY` and `GEMINI_MODEL`; pass your own `Config` values to read
+ * them from somewhere else.
+ */
+export const layerConfig = (
+  options?: {
+    readonly apiKey?: Config.Config<Redacted.Redacted<string> | undefined> | undefined
+    readonly model?: Config.Config<string> | undefined
+    readonly baseUrl?: Config.Config<string | undefined> | undefined
+  }
+): Layer.Layer<HtmlStream, Config.ConfigError, HttpClient.HttpClient> =>
+  Layer.effect(
+    HtmlStream,
+    Effect.gen(function*() {
+      const apiKey = options?.apiKey
+        ? yield* options.apiKey
+        : Option.getOrUndefined(yield* Config.option(Config.Redacted("GEMINI_API_KEY")))
+      const model = options?.model
+        ? yield* options.model
+        : yield* Config.String("GEMINI_MODEL").pipe(Config.withDefault(DEFAULT_MODEL))
+      const baseUrl = options?.baseUrl ? yield* options.baseUrl : undefined
+      return yield* make({ apiKey, model, baseUrl })
+    })
+  )

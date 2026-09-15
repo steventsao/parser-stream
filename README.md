@@ -32,19 +32,23 @@ The plugin owns that whole path, end to end:
 - The box survives into the HTML as `data-bbox`, so a viewer can highlight the source region.
 - Steps 1 to 3 are the contract (`@parser-stream/parsebench`); step 2's transport is Gemini (`@parser-stream/gemini`). The core sees only step 4.
 
-Want the boxes without any HTML, for crops, search, or evaluation? Take the typed stream:
+Want the boxes without any HTML, for crops, search, or evaluation? Take the typed stream. The key arrives the way Effect does request-scoped values, through the `Credential` reference, and the HTTP client comes from a layer:
 
 ```ts
-import { Effect, Redacted, Stream } from "effect"
+import { Effect, Option, Redacted, Stream } from "effect"
+import { FetchHttpClient } from "effect/unstable/http"
 import { GeminiFlashParseBenchParser } from "@parser-stream/gemini"
+import { Credential } from "parser-stream"
 
-const elements = GeminiFlashParseBenchParser.elements(
-  { bytes, mediaType: "application/pdf" },
-  { apiKey: Redacted.make(process.env.GEMINI_API_KEY!) }
-)
+const elements = GeminiFlashParseBenchParser.elements({ bytes, mediaType: "application/pdf" })
 
-Stream.runForEach(elements, (element) => Effect.log(`${element.label} ${element.bbox?.join(",") ?? ""}`))
+const program = Credential.provide(
+  Stream.runForEach(elements, (element) => Effect.log(`${element.label} ${element.bbox?.join(",") ?? ""}`)),
+  Option.some(Redacted.make(process.env.GEMINI_API_KEY!))
+).pipe(Effect.provide(FetchHttpClient.layer))
 ```
+
+In an app you never write that line: the server fills `Credential` from the upload. A script that would rather hold its own key can pass one to the plugin instead — `elements(source, { apiKey })`, the same option `layer({ apiKey })` takes — and `layerConfig()` reads `GEMINI_API_KEY` for you.
 
 Multi-page PDFs are split into pages and converted in parallel, so page 3 can finish before page 1 without disturbing reading order. A page that fails after its retries shows an error in place.
 

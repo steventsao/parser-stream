@@ -1,5 +1,5 @@
 import { Effect, Encoding, Redacted, Schema, Stream } from "effect"
-import { HttpClient, HttpClientRequest } from "effect/unstable/http"
+import { Headers, HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { HtmlStreamError } from "parser-stream/HtmlStream"
 import type { Source } from "parser-stream/Source"
 
@@ -10,6 +10,13 @@ import type { Source } from "parser-stream/Source"
  */
 
 export const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+
+/**
+ * Effect redacts `authorization` and `x-api-key` in logs and traces by default.
+ * Gemini's own header needs adding, so the key cannot appear even if a request
+ * is logged.
+ */
+const REDACTED_HEADERS = [...Headers.CurrentRedactedNames.defaultValue(), "x-goog-api-key"]
 
 export interface GeminiRequest {
   readonly parser: string
@@ -50,7 +57,7 @@ export const stream = (request: GeminiRequest): Stream.Stream<string, HtmlStream
       encodeURIComponent(request.model)
     }:streamGenerateContent?alt=sse`
     const httpRequest = HttpClientRequest.post(url).pipe(
-      // The key travels in a header, never in the URL, so it cannot leak into logs or error messages.
+      // The key travels in a header, never in the URL, and that header is redacted below.
       HttpClientRequest.setHeader("x-goog-api-key", Redacted.value(request.apiKey)),
       HttpClientRequest.bodyJsonUnsafe({
         ...(request.systemInstruction ? { systemInstruction: { parts: [{ text: request.systemInstruction }] } } : {}),
@@ -89,5 +96,5 @@ export const stream = (request: GeminiRequest): Stream.Stream<string, HtmlStream
       Stream.map(chunkText),
       Stream.filter((text) => text.length > 0)
     )
-  }))
+  })).pipe(Stream.provideService(Headers.CurrentRedactedNames, REDACTED_HEADERS))
 }

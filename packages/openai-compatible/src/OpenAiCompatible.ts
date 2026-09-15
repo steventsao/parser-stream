@@ -151,14 +151,30 @@ export const layer = (
   options: OpenAiCompatibleOptions
 ): Layer.Layer<HtmlStream, never, HttpClient.HttpClient> => Layer.effect(HtmlStream, make(options))
 
-/** HtmlStream layer from `OPENAI_BASE_URL`, `OPENAI_MODEL`, optional `OPENAI_API_KEY`, and `PARSER_MODE`. */
-export const layerConfig: Layer.Layer<HtmlStream, Config.ConfigError, HttpClient.HttpClient> = Layer.effect(
-  HtmlStream,
-  Effect.gen(function*() {
-    const baseUrl = yield* Config.String("OPENAI_BASE_URL")
-    const model = yield* Config.String("OPENAI_MODEL")
-    const apiKey = yield* Config.option(Config.Redacted("OPENAI_API_KEY"))
-    const mode = yield* Config.Literals(["markdown", "layout"], "PARSER_MODE").pipe(Config.withDefault("markdown"))
-    return yield* make({ baseUrl, model, apiKey: Option.getOrUndefined(apiKey), mode })
-  })
-)
+/**
+ * The same parser, with its settings read from configuration. Defaults to
+ * `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, and `PARSER_MODE`; pass
+ * your own `Config` values to read them from somewhere else.
+ */
+export const layerConfig = (
+  options?: {
+    readonly baseUrl?: Config.Config<string> | undefined
+    readonly model?: Config.Config<string> | undefined
+    readonly apiKey?: Config.Config<Redacted.Redacted<string> | undefined> | undefined
+    readonly mode?: Config.Config<PromptMode> | undefined
+  }
+): Layer.Layer<HtmlStream, Config.ConfigError, HttpClient.HttpClient> =>
+  Layer.effect(
+    HtmlStream,
+    Effect.gen(function*() {
+      const baseUrl = options?.baseUrl ? yield* options.baseUrl : yield* Config.String("OPENAI_BASE_URL")
+      const model = options?.model ? yield* options.model : yield* Config.String("OPENAI_MODEL")
+      const apiKey = options?.apiKey
+        ? yield* options.apiKey
+        : Option.getOrUndefined(yield* Config.option(Config.Redacted("OPENAI_API_KEY")))
+      const mode = options?.mode
+        ? yield* options.mode
+        : yield* Config.Literals(["markdown", "layout"], "PARSER_MODE").pipe(Config.withDefault("markdown"))
+      return yield* make({ baseUrl, model, apiKey, mode })
+    })
+  )

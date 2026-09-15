@@ -33,7 +33,7 @@ The core produces an event stream. HTTP with Server-Sent Events is one transport
 1. Implement the port: `HtmlStream.of({ name, parse })`, where `parse` returns `Stream<string, HtmlStreamError>`.
 2. Own your prompt, the shape you ask for, its decoding (use `Schema`), and the tags you emit.
 3. Read `Credential` for the caller's secret, and raise your own error when it is missing.
-4. Publish `layer(options)` and `layerConfig` so a host can pick you with one line.
+4. Publish `layer(options)` and `layerConfig(options?)`, where `layerConfig` accepts `Config` values and falls back to your own environment variables, so a host can pick you with one line.
 
 ## Rules
 
@@ -41,6 +41,7 @@ The core produces an event stream. HTTP with Server-Sent Events is one transport
 - Every block a plugin produces crosses `Sanitizer` before it is stored or sent. Server-built wrappers are added after.
 - Only `packages/node` and `apps/cli` may import `node:*`, `@effect/platform-node`, or `html-rewriter-wasm`: the Worker bundles the rest.
 - A caller's key stays in memory. Never store, log, or return it.
+- Send a key in a header, never in a URL. Effect redacts only `authorization`, `cookie`, `set-cookie`, and `x-api-key`, so add any other auth header to `Headers.CurrentRedactedNames`, as `packages/gemini/src/Transport.ts` does with `x-goog-api-key`.
 - Route handlers only see services the router tracks: use `Context.Service` (not `Context.Reference`) for anything they read, and `HttpRouter.provideRequest` with `toWebHandler`.
 - Tests live in `packages/*/test`, never call a live model, and use `@parser-stream/testkit`.
 - A package's `exports` point at `src` for development; its `publishConfig.exports` point at `dist`. Keep both in step when you add a subpath, and give the new project a `references` entry in its `tsconfig.build.json`.
