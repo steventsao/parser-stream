@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Layer, Stream } from "effect"
-import { Sessions } from "../src/Sessions.js"
-import { chunked, converterWith, partChunks, pdfSource } from "./fixtures.js"
+import { Effect, Layer, Option, Stream } from "effect"
+import { type SessionSnapshot, Sessions, SessionStore } from "../src/Sessions.js"
+import { chunked, converterWith, imageSource, partChunks, pdfSource } from "./fixtures.js"
 
 const SessionsTest = Sessions.layer.pipe(
   Layer.provide(converterWith((request) => chunked(partChunks(request.part?.index ?? 1), 5)))
@@ -32,4 +32,35 @@ describe("Sessions", () => {
       const error = yield* sessions.snapshot("missing").pipe(Effect.flip)
       assert.strictEqual(error._tag, "SessionNotFound")
     }).pipe(Effect.provide(SessionsTest)))
+
+  it.live("restores a finished session from its store after a restart", () => {
+    const saved = new Map<string, SessionSnapshot>()
+    const store = Layer.succeed(SessionStore)({
+      save: (snapshot) => Effect.sync(() => void saved.set(snapshot.id, snapshot)),
+      load: (id) => Effect.sync(() => Option.fromNullishOr(saved.get(id)))
+    })
+    const first = Sessions.layer.pipe(Layer.provide([converterWith(() => chunked(["<h1>A</h1>", "<p>B</p>"])), store]))
+    const second = Sessions.layer.pipe(Layer.provide([converterWith(() => Stream.die("must not run")), store]))
+
+    return Effect.gen(function*() {
+      const id = yield* Effect.gen(function*() {
+        const sessions = yield* Sessions
+        const info = yield* sessions.create({ source: imageSource, title: "scan" })
+        yield* Stream.runDrain(sessions.events(info.id, 0))
+        return info.id
+      }).pipe(Effect.provide(first))
+      assert.isTrue(saved.has(id))
+
+      const { events, snapshot } = yield* Effect.gen(function*() {
+        const sessions = yield* Sessions
+        return {
+          snapshot: yield* sessions.snapshot(id),
+          events: yield* Stream.runCollect(sessions.events(id, 0))
+        }
+      }).pipe(Effect.provide(second))
+      assert.strictEqual(snapshot.status, "done")
+      assert.deepStrictEqual(snapshot.blocks.map((block) => block.id), ["block-1", "block-2"])
+      assert.deepStrictEqual(events.map((event) => `${event.seq}:${event.type}`), ["1:append", "2:append", "3:done"])
+    })
+  })
 })

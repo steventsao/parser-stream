@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect } from "effect"
+import * as NodeSanitizer from "../src/node/Sanitizer.js"
 import { Sanitizer } from "../src/Sanitizer.js"
 
 const sanitize = Effect.fn("sanitize")(function*(html: string) {
@@ -19,7 +20,7 @@ describe("Sanitizer", () => {
         out,
         `<p>Hi<a>bad</a><a href="https://example.com" rel="noopener noreferrer nofollow">good</a><img alt="pic"></p>`
       )
-    }).pipe(Effect.provide(Sanitizer.layer)))
+    }).pipe(Effect.provide(NodeSanitizer.layer)))
 
   it.effect("unwraps unknown wrappers and keeps table structure", () =>
     Effect.gen(function*() {
@@ -27,11 +28,11 @@ describe("Sanitizer", () => {
         `<div class="x"><table><tr><th scope="col" onmouseover="x">A</th></tr></table></div>`
       )
       assert.strictEqual(out, `<table><tr><th scope="col">A</th></tr></table>`)
-    }).pipe(Effect.provide(Sanitizer.layer)))
+    }).pipe(Effect.provide(NodeSanitizer.layer)))
 
   it.effect("keeps figure crop hints", () =>
     Effect.gen(function*() {
       const out = yield* sanitize(`<figure data-page="2" data-bbox="1,2,3,4"><figcaption>Chart</figcaption></figure>`)
       assert.strictEqual(out, `<figure data-page="2" data-bbox="1,2,3,4"><figcaption>Chart</figcaption></figure>`)
-    }).pipe(Effect.provide(Sanitizer.layer)))
+    }).pipe(Effect.provide(NodeSanitizer.layer)))
 })

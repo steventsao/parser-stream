@@ -1,4 +1,4 @@
-import { Clock, Context, Effect, Layer, Option, Schedule, Schema, Stream } from "effect"
+import { Clock, Context, Effect, Layer, Option, type Redacted, Schedule, Schema, Stream } from "effect"
 import {
   type DocumentInput,
   type DocumentState,
@@ -62,6 +62,8 @@ export interface ConvertOptions {
   readonly paintGrowth: number
   readonly paintMinIntervalMs: number
   readonly paintMaxQuietMs: number
+  /** Passed to every parser request of this conversion, for example the caller's own API key. */
+  readonly credential: Redacted.Redacted<string> | undefined
 }
 
 export const defaultOptions: ConvertOptions = {
@@ -72,7 +74,8 @@ export const defaultOptions: ConvertOptions = {
   maxParts: 100,
   paintGrowth: 1.25,
   paintMinIntervalMs: 120,
-  paintMaxQuietMs: 1_200
+  paintMaxQuietMs: 1_200,
+  credential: undefined
 }
 
 export class PartLimitError extends Schema.TaggedError<PartLimitError>()("PartLimitError", {
@@ -150,7 +153,7 @@ const make = Effect.gen(function*() {
         buffer = ""
         return tail ? appendAll([tail]) : Effect.succeed([])
       })
-      return parser.parse({ source, prompt: WHOLE_PROMPT, part: undefined }).pipe(
+      return parser.parse({ source, prompt: WHOLE_PROMPT, part: undefined, credential: options.credential }).pipe(
         failIfIdle(options, "The parser"),
         Stream.mapEffect((delta) => {
           const { blocks, rest } = extractBlocks(buffer + delta)
@@ -231,7 +234,7 @@ const make = Effect.gen(function*() {
         return [paint(yield* Clock.currentTimeMillis)]
       })
 
-      return parser.parse({ source, prompt: partPrompt(part), part }).pipe(
+      return parser.parse({ source, prompt: partPrompt(part), part, credential: options.credential }).pipe(
         failIfIdle(options, `${part.unit} ${part.index}`),
         Stream.mapEffect(onDelta),
         Stream.concat(Stream.fromEffect(finish)),
@@ -329,6 +332,9 @@ export class Converter extends Context.Service<Converter, {
   /** Requires `Parser`, `Sanitizer`, and `Splitter`. */
   static readonly layerNoDeps = Layer.effect(Converter, make)
 
-  /** Requires only a `Parser`. Uses the lol-html sanitizer and the PDF page splitter. */
-  static readonly layer = this.layerNoDeps.pipe(Layer.provide([Sanitizer.layer, PdfSplitter.layer]))
+  /**
+   * Requires `Parser` and `Sanitizer` (pick the one for your runtime:
+   * `node/Sanitizer` or `workers/Sanitizer`). Splits PDFs into pages.
+   */
+  static readonly layer = this.layerNoDeps.pipe(Layer.provide(PdfSplitter.layer))
 }

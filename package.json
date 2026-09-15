@@ -9,7 +9,16 @@
     "type": "git",
     "url": "git+https://github.com/steventsao/parser-stream.git"
   },
-  "keywords": ["pdf", "html", "parser", "streaming", "sse", "effect", "gemini", "byok"],
+  "keywords": [
+    "pdf",
+    "html",
+    "parser",
+    "streaming",
+    "sse",
+    "effect",
+    "gemini",
+    "byok"
+  ],
   "engines": {
     "node": ">=22"
   },
@@ -20,6 +29,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node/index.d.ts",
+      "default": "./dist/node/index.js"
+    },
+    "./workers/sanitizer": {
+      "types": "./dist/workers/Sanitizer.d.ts",
+      "default": "./dist/workers/Sanitizer.js"
+    },
+    "./workers/session-store": {
+      "types": "./dist/workers/SessionStore.d.ts",
+      "default": "./dist/workers/SessionStore.js"
     }
   },
   "files": [
@@ -29,9 +50,10 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.workers.json",
     "test": "vitest run",
-    "cli": "tsx src/bin.ts"
+    "cli": "tsx src/bin.ts",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@effect/platform-node": "4.0.0-rc.115",
@@ -40,10 +62,12 @@
     "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260915.1",
     "@effect/vitest": "4.0.0-rc.115",
     "@types/node": "^22",
     "tsx": "^4",
     "typescript": "^5.9",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "wrangler": "^4"
   }
 }

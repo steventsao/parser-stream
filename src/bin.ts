@@ -3,10 +3,11 @@ import { NodeRuntime, NodeServices } from "@effect/platform-node"
 import { Console, Effect, FileSystem, Layer, Option, Stream } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 import { basename, extname } from "node:path"
-import { ConfigurationError, ConverterLive, SessionsLive } from "./App.js"
 import { Converter, toDocument } from "./Converter.js"
 import { renderHtmlDocument } from "./domain/Document.js"
-import { layerServer, ServerConfig } from "./http/Routes.js"
+import { ServerConfig } from "./http/Routes.js"
+import { ConfigurationError, ConverterLive, SessionsLive } from "./node/App.js"
+import { layerServer } from "./node/Server.js"
 import { mediaTypeFromPath } from "./Source.js"
 
 try {
@@ -14,6 +15,9 @@ try {
 } catch {
   // no .env in the working directory
 }
+
+const usesGemini = () => (process.env["PARSER"] ?? "gemini") === "gemini"
+const serverHasKey = () => !usesGemini() || Boolean(process.env["GEMINI_API_KEY"])
 
 const mode = Flag.Literals("mode", ["auto", "whole", "split"]).pipe(
   Flag.withDescription("auto: split when the source has several parts. whole: one request. split: one request per part."),
@@ -30,15 +34,17 @@ const serve = Command.make(
   {
     port: Flag.Int("port").pipe(Flag.withAlias("p"), Flag.withDefault(3000)),
     host: Flag.String("host").pipe(
-      Flag.withDescription("Bind address. Anything other than loopback lets the network spend your key."),
+      Flag.withDescription("Bind address. Anything other than loopback lets the network use this server."),
       Flag.withDefault("127.0.0.1")
     )
   },
   Effect.fn(function*({ host, port }) {
     const loopback = host === "127.0.0.1" || host === "localhost" || host === "::1"
-    if (!loopback) yield* Console.error(`Warning: listening on ${host}. Anyone who can reach it can spend your key.`)
-    const defaults = ServerConfig.defaultValue()
-    const config = Layer.succeed(ServerConfig)({ ...defaults, allowedHosts: loopback ? defaults.allowedHosts : "any" })
+    if (!loopback) yield* Console.error(`Warning: listening on ${host}. Anyone who can reach it can use this server.`)
+    const config = ServerConfig.layer({
+      ...(loopback ? {} : { allowedHosts: "any" as const }),
+      keyField: serverHasKey() ? "hidden" : "required"
+    })
     return yield* Layer.launch(layerServer({ port, host }).pipe(Layer.provide([SessionsLive, config])))
   })
 ).pipe(Command.withDescription("Start the demo UI and HTTP API"))
@@ -63,6 +69,11 @@ const convert = Command.make(
     const type = Option.getOrUndefined(mediaType) ?? mediaTypeFromPath(file)
     if (!type) {
       return yield* new ConfigurationError({ message: `Unknown media type for ${file}. Pass --media-type.` })
+    }
+    if (!serverHasKey()) {
+      return yield* new ConfigurationError({
+        message: "Set GEMINI_API_KEY (https://aistudio.google.com/apikey), or set PARSER=http and PARSER_URL."
+      })
     }
     const fs = yield* FileSystem.FileSystem
     const bytes = yield* fs.readFile(file)

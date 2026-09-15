@@ -1,10 +1,12 @@
-import { Context, Effect, Layer, Schema, Semaphore } from "effect"
-import { type Comment, type Element, HTMLRewriter } from "html-rewriter-wasm"
+import { Context, type Effect, Schema } from "effect"
 
 /**
- * Parser output comes from a model (or other code) that read an untrusted PDF.
- * Prompt instructions are not a security boundary, so every block crosses this
- * allowlist before it is stored, broadcast, or rendered.
+ * Parser output comes from a model (or other code) that read an untrusted
+ * document. Prompt instructions are not a security boundary, so every block
+ * crosses this allowlist before it is stored, broadcast, or rendered.
+ *
+ * The policy is runtime-neutral: `node/Sanitizer.ts` runs it through lol-html
+ * (WebAssembly), `workers/Sanitizer.ts` through Cloudflare's HTMLRewriter.
  */
 
 export class SanitizeError extends Schema.TaggedError<SanitizeError>()("SanitizeError", {
@@ -41,8 +43,24 @@ export const isSafeUrl = (value: string): boolean => {
   return s.startsWith("https://") || s.startsWith("http://") || s.startsWith("mailto:") || s.startsWith("#")
 }
 
-const handlers = {
-  element(el: Element) {
+/** The element API that lol-html and Cloudflare's HTMLRewriter share. */
+export interface RewriterElement {
+  readonly tagName: string
+  readonly attributes: Iterable<ReadonlyArray<string>>
+  remove(): unknown
+  removeAndKeepContent(): unknown
+  hasAttribute(name: string): boolean
+  setAttribute(name: string, value: string): unknown
+  removeAttribute(name: string): unknown
+}
+
+export interface RewriterComment {
+  remove(): unknown
+}
+
+/** Rewriter handlers for the allowlist. Register them on `*`. */
+export const sanitizerHandlers = {
+  element(el: RewriterElement) {
     const tag = el.tagName.toLowerCase()
     if (DROPPED_TAGS.has(tag)) {
       el.remove()
@@ -55,7 +73,7 @@ const handlers = {
     const allowed = ALLOWED_ATTRIBUTES[tag]
     const global = ALLOWED_ATTRIBUTES["*"]!
     const drop: Array<string> = []
-    for (const [name, value] of el.attributes) {
+    for (const [name = "", value = ""] of el.attributes) {
       const n = name.toLowerCase()
       if (!global.has(n) && !allowed?.has(n)) drop.push(name)
       else if ((n === "src" || n === "href") && !isSafeUrl(value)) drop.push(name)
@@ -63,51 +81,11 @@ const handlers = {
     for (const name of drop) el.removeAttribute(name)
     if (tag === "a" && el.hasAttribute("href")) el.setAttribute("rel", "noopener noreferrer nofollow")
   },
-  comments(comment: Comment) {
+  comments(comment: RewriterComment) {
     comment.remove()
   }
 }
 
 export class Sanitizer extends Context.Service<Sanitizer, {
   readonly sanitize: (html: string) => Effect.Effect<string, SanitizeError>
-}>()("parser-stream/Sanitizer") {
-  /** Allowlist sanitizer backed by lol-html (WebAssembly). */
-  static readonly layer = Layer.effect(
-    Sanitizer,
-    Effect.gen(function*() {
-      // The WebAssembly module runs one rewriter at a time; parallel page fibers share this lock.
-      const lock = yield* Semaphore.make(1)
-      const encoder = new TextEncoder()
-
-      const run = (html: string) =>
-        Effect.suspend(() => {
-          const decoder = new TextDecoder()
-          let out = ""
-          return Effect.acquireUseRelease(
-            Effect.sync(() =>
-              new HTMLRewriter((chunk) => {
-                out += decoder.decode(chunk, { stream: true })
-              })
-            ),
-            (rewriter) =>
-              Effect.tryPromise({
-                try: async () => {
-                  rewriter.on("*", handlers)
-                  await rewriter.write(encoder.encode(html))
-                  await rewriter.end()
-                  return out + decoder.decode()
-                },
-                catch: (cause) => new SanitizeError({ cause })
-              }),
-            (rewriter) => Effect.sync(() => rewriter.free())
-          )
-        })
-
-      const sanitize = Effect.fn("Sanitizer.sanitize")(function*(html: string) {
-        return yield* Semaphore.withPermit(lock, run(html))
-      })
-
-      return Sanitizer.of({ sanitize })
-    })
-  )
-}
+}>()("parser-stream/Sanitizer") {}

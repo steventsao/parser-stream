@@ -1,6 +1,7 @@
 import { Effect, Layer, Stream } from "effect"
 import { PDFDocument } from "pdf-lib"
 import { Converter } from "../src/Converter.js"
+import * as NodeSanitizer from "../src/node/Sanitizer.js"
 import { Parser, ParserError, type ParseRequest } from "../src/Parser.js"
 import type { Source } from "../src/Source.js"
 
@@ -31,6 +32,6 @@ export const fakeParser = (parse: (request: ParseRequest) => Stream.Stream<strin
   Parser.fromFunction("fake", parse)
 
 export const converterWith = (parse: (request: ParseRequest) => Stream.Stream<string, ParserError>) =>
-  Converter.layer.pipe(Layer.provide(fakeParser(parse)))
+  Converter.layer.pipe(Layer.provide([fakeParser(parse), NodeSanitizer.layer]))
 
 export const parserError = (message: string) => new ParserError({ parser: "fake", message })

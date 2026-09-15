@@ -3,12 +3,13 @@ import { assert, layer } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter, HttpServer } from "effect/unstable/http"
 import { request as httpRequest } from "node:http"
-import { Routes } from "../src/http/Routes.js"
+import { Routes, ServerConfig } from "../src/http/Routes.js"
 import { Sessions } from "../src/Sessions.js"
 import { chunked, converterWith, makePdf } from "./fixtures.js"
 
 const TestServer = HttpRouter.serve(Routes, { disableLogger: true, disableListenLog: true }).pipe(
   Layer.provide(Sessions.layer.pipe(Layer.provide(converterWith(() => chunked(["<h1>Hello</h1>", "<p>World</p>"]))))),
+  Layer.provide(ServerConfig.layer()),
   Layer.provideMerge(NodeHttpServer.layerTest)
 )
 
@@ -23,21 +24,24 @@ const statusWithHost = (port: number, host: string) =>
     req.end()
   })
 
-layer(TestServer)("HTTP server", (it) => {
-  it.effect("serves the demo page with a strict CSP", () =>
+const postJson = HttpClientRequest.setHeader("accept", "application/json")
+
+layer(TestServer)("Node HTTP server", (it) => {
+  it.effect("serves the upload page with a strict CSP", () =>
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
       const response = yield* client.get("/")
       assert.strictEqual(response.status, 200)
       assert.include(response.headers["content-security-policy"] ?? "", "script-src 'self'")
-      assert.include(yield* response.text, `<main id="doc" class="doc">`)
+      assert.include(yield* response.text, `<form id="form" method="post" action="/s"`)
     }))
 
-  it.effect("uploads a PDF, streams events, and serves the finished file", () =>
+  it.effect("uploads raw bytes, streams events, and serves the finished file", () =>
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
       const created = yield* client.execute(
-        HttpClientRequest.post("/api/sessions?mode=whole").pipe(
+        HttpClientRequest.post("/s?mode=whole").pipe(
+          postJson,
           HttpClientRequest.setHeader("x-filename", "Quarterly%20report.pdf"),
           HttpClientRequest.bodyUint8Array(yield* makePdf(1), "application/pdf")
         )
@@ -60,11 +64,12 @@ layer(TestServer)("HTTP server", (it) => {
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
       const response = yield* client.execute(
-        HttpClientRequest.post("/api/sessions").pipe(HttpClientRequest.bodyText("hello", "text/plain"))
+        HttpClientRequest.post("/s").pipe(postJson, HttpClientRequest.bodyText("hello", "text/plain"))
       )
       assert.strictEqual(response.status, 415)
       const fake = yield* client.execute(
-        HttpClientRequest.post("/api/sessions").pipe(
+        HttpClientRequest.post("/s").pipe(
+          postJson,
           HttpClientRequest.bodyUint8Array(new TextEncoder().encode("not a pdf"), "application/pdf")
         )
       )
@@ -82,7 +87,8 @@ layer(TestServer)("HTTP server", (it) => {
   it.effect("returns 404 for an unknown session", () =>
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
-      assert.strictEqual((yield* client.get("/api/sessions/nope")).status, 404)
-      assert.strictEqual((yield* client.get("/api/sessions/nope/events")).status, 404)
+      assert.strictEqual((yield* client.get("/s/nope")).status, 404)
+      assert.strictEqual((yield* client.get("/s/nope/snapshot")).status, 404)
+      assert.strictEqual((yield* client.get("/s/nope/events")).status, 404)
     }))
 })

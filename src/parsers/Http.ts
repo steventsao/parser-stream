@@ -8,7 +8,7 @@ import { Parser, ParserError, type ParseRequest } from "../Parser.js"
  *   POST {PARSER_URL}?unit=page&index=N&total=M   (no query for a whole source)
  *   content-type: {the source media type, for example application/pdf}
  *   accept: text/html
- *   authorization: Bearer {PARSER_TOKEN}           (only when PARSER_TOKEN is set)
+ *   authorization: Bearer {caller key or PARSER_TOKEN}   (only when one is set)
  *   body: the source bytes
  *
  * Respond 200 with HTML block elements. Stream the body (chunked) for live
@@ -17,6 +17,7 @@ import { Parser, ParserError, type ParseRequest } from "../Parser.js"
 
 export interface HttpParserOptions {
   readonly url: string
+  /** Used when a request brings no credential of its own. */
   readonly token?: Redacted.Redacted<string> | undefined
 }
 
@@ -38,7 +39,8 @@ export const make = Effect.fn("HttpParser.make")(function*(options: HttpParserOp
         HttpClientRequest.setHeader("accept", "text/html"),
         HttpClientRequest.bodyUint8Array(request.source.bytes, request.source.mediaType)
       )
-      if (options.token) httpRequest = HttpClientRequest.bearerToken(httpRequest, Redacted.value(options.token))
+      const token = request.credential ?? options.token
+      if (token) httpRequest = HttpClientRequest.bearerToken(httpRequest, Redacted.value(token))
       const response = yield* client.execute(httpRequest).pipe(
         Effect.mapError((error) => fail(`Request to the parser failed: ${error.message}`))
       )

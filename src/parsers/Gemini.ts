@@ -1,17 +1,19 @@
-import { Config, Effect, Encoding, Layer, Redacted, Schema, Stream } from "effect"
+import { Config, Effect, Encoding, Layer, Option, Redacted, Schema, Stream } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { Parser, ParserError, type ParseRequest } from "../Parser.js"
 
 /**
  * Gemini reads the source natively (PDF, images, text, ...) and streams HTML
- * over SSE. Bring your own key: `GEMINI_API_KEY`, and optionally `GEMINI_MODEL`.
+ * over SSE. Bring your own key: per request (`ParseRequest.credential`) or for
+ * the whole server (`GEMINI_API_KEY`). `GEMINI_MODEL` is optional.
  */
 
 export const DEFAULT_MODEL = "gemini-3-flash-preview"
 export const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
 export interface GeminiOptions {
-  readonly apiKey: Redacted.Redacted<string>
+  /** Used when a request brings no key of its own. */
+  readonly apiKey?: Redacted.Redacted<string> | undefined
   readonly model?: string | undefined
   readonly baseUrl?: string | undefined
 }
@@ -45,9 +47,11 @@ export const make = Effect.fn("GeminiParser.make")(function*(options: GeminiOpti
 
   const parse = (request: ParseRequest): Stream.Stream<string, ParserError> =>
     Stream.unwrap(Effect.gen(function*() {
+      const apiKey = request.credential ?? options.apiKey
+      if (!apiKey) return yield* fail("No Gemini API key. Bring your own key, or set GEMINI_API_KEY on the server.")
       const httpRequest = HttpClientRequest.post(url).pipe(
         // The key travels in a header, never in the URL, so it cannot leak into logs or error messages.
-        HttpClientRequest.setHeader("x-goog-api-key", Redacted.value(options.apiKey)),
+        HttpClientRequest.setHeader("x-goog-api-key", Redacted.value(apiKey)),
         HttpClientRequest.bodyJsonUnsafe({
           contents: [{
             parts: [
@@ -96,12 +100,12 @@ export const make = Effect.fn("GeminiParser.make")(function*(options: GeminiOpti
 export const layer = (options: GeminiOptions): Layer.Layer<Parser, never, HttpClient.HttpClient> =>
   Layer.effect(Parser, make(options))
 
-/** Gemini parser layer from `GEMINI_API_KEY` and `GEMINI_MODEL`. */
+/** Gemini parser layer from the optional `GEMINI_API_KEY` and `GEMINI_MODEL`. */
 export const layerConfig: Layer.Layer<Parser, Config.ConfigError, HttpClient.HttpClient> = Layer.effect(
   Parser,
   Effect.gen(function*() {
-    const apiKey = yield* Config.Redacted("GEMINI_API_KEY")
+    const apiKey = yield* Config.option(Config.Redacted("GEMINI_API_KEY"))
     const model = yield* Config.String("GEMINI_MODEL").pipe(Config.withDefault(DEFAULT_MODEL))
-    return yield* make({ apiKey, model })
+    return yield* make({ apiKey: Option.getOrUndefined(apiKey), model })
   })
 )

@@ -6,6 +6,7 @@
 import { NodeRuntime } from "@effect/platform-node"
 import { Console, Effect, Layer, Stream } from "effect"
 import { Converter, Document, Html, Parser } from "../src/index.js"
+import { NodeSanitizer } from "../src/node/index.js"
 
 const PlainTextParser = Parser.fromFunction("plain-text", (request) =>
   Stream.fromIterable(new TextDecoder().decode(request.source.bytes).split(/\n\s*\n/)).pipe(
@@ -23,6 +24,6 @@ const program = Effect.gen(function*() {
   const text = "# Hello\n\nThis page came from a custom parser.\n\nNo PDF and no API key <script>were</script> involved."
   const document = yield* converter.render({ bytes: new TextEncoder().encode(text), mediaType: "text/plain" })
   yield* Console.log(Document.renderHtmlDocument({ title: "Hello", blocks: document.blocks }))
-}).pipe(Effect.provide(Converter.layer.pipe(Layer.provide(PlainTextParser))))
+}).pipe(Effect.provide(Converter.layer.pipe(Layer.provide([PlainTextParser, NodeSanitizer.layer]))))
 
 NodeRuntime.runMain(program)

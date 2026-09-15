@@ -1,4 +1,4 @@
-import { Context, Layer, Schema, type Stream } from "effect"
+import { Context, Layer, type Redacted, Schema, type Stream } from "effect"
 import type { Source } from "./Source.js"
 
 /**
@@ -28,6 +28,11 @@ export interface ParseRequest {
   /** Default instruction for vision-language models. Other parsers can ignore it. */
   readonly prompt: string
   readonly part: PartRef | undefined
+  /**
+   * A secret the caller supplied for this conversion only, for example their
+   * own API key. Prefer it over a key the parser was configured with.
+   */
+  readonly credential: Redacted.Redacted<string> | undefined
 }
 
 export class ParserError extends Schema.TaggedError<ParserError>()("ParserError", {
