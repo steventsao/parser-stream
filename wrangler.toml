@@ -18,6 +18,10 @@ cpu_ms = 300000
 [observability]
 enabled = true
 
+# Invocation logs can record request headers, and API clients may send `x-api-key`. Keep app logs only.
+[observability.logs]
+invocation_logs = false
+
 [vars]
 GEMINI_MODEL = "gemini-3-flash-preview"
 

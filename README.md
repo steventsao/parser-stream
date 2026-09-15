@@ -2,6 +2,8 @@
 
 Stream a document into clean, sanitized, semantic HTML, block by block, while the parser is still working.
 
+**Live demo: https://parser-stream.steventsao.workers.dev** — bring your own [Gemini API key](https://aistudio.google.com/apikey); it is used for your upload only and never stored. Anyone with a document's link can view it, and the demo deletes documents 7 days after they finish, so do not upload anything sensitive.
+
 - **Redirect, then stream.** Upload a file, land on its page right away, and watch it fill in.
 - **Bring your own key.** The default parser is Gemini, which reads PDFs and images natively. A key can come with each upload (never stored) or from the server.
 - **Bring your own parser.** Implement one function (`Source` in, HTML text stream out) in TypeScript, or put any parser in any language behind one HTTP endpoint.

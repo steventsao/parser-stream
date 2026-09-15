@@ -30,8 +30,12 @@ const serverConfig = (env: Env) =>
     keyField: env.GEMINI_API_KEY ? "optional" : "required"
   })
 
+/** Finished documents are deleted this long after they finish. */
+const RETENTION_MS = 7 * 24 * 60 * 60 * 1000
+
 export class SessionObject extends DurableObject<Env> {
   private readonly web: { readonly handler: (request: Request) => Promise<Response> }
+  private expired = false
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -44,7 +48,7 @@ export class SessionObject extends DurableObject<Env> {
       Layer.provide([
         converter,
         Layer.succeed(NewSessionId)(() => ctx.id.toString()),
-        DurableSessionStore.layer(ctx.storage)
+        DurableSessionStore.layer(ctx.storage, { retentionMs: RETENTION_MS })
       ])
     )
     // `provideRequest` builds the layer once per object, so one session runtime serves every request.
@@ -54,8 +58,15 @@ export class SessionObject extends DurableObject<Env> {
     )
   }
 
-  override fetch(request: Request): Promise<Response> {
+  override async fetch(request: Request): Promise<Response> {
+    if (this.expired) return new Response("Not found", { status: 404 })
     return this.web.handler(request)
+  }
+
+  override async alarm(): Promise<void> {
+    // The in-memory copy of this session must not outlive its storage.
+    this.expired = true
+    await this.ctx.storage.deleteAll()
   }
 }
 
