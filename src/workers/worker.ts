@@ -3,6 +3,7 @@ import { Layer, Redacted } from "effect"
 import { FetchHttpClient, HttpRouter } from "effect/unstable/http"
 import { Converter } from "../Converter.js"
 import { PageRoutes, ServerConfig, SessionRoutes } from "../http/Routes.js"
+import { renderMessagePage } from "../http/Ui.js"
 import * as GeminiParser from "../parsers/Gemini.js"
 import { NewSessionId, Sessions } from "../Sessions.js"
 import * as WorkersSanitizer from "./Sanitizer.js"
@@ -81,15 +82,35 @@ const pagesFor = (env: Env): WebHandler =>
 
 const SESSION_PATH = /^\/s\/([0-9a-f]{64})(?:\/|$)/
 
+const notFound = () =>
+  new Response(renderMessagePage("Not found", "This document does not exist or is no longer kept."), {
+    status: 404,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "content-security-policy": "default-src 'none'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'"
+    }
+  })
+
+/** `idFromString` throws for an id this namespace never issued, such as a tampered link. */
+const sessionStub = (env: Env, hex: string) => {
+  try {
+    return env.SESSIONS.get(env.SESSIONS.idFromString(hex))
+  } catch {
+    return undefined
+  }
+}
+
 export default {
   fetch(request, env) {
     const url = new URL(request.url)
     if (url.pathname === "/s" && request.method === "POST") {
       return env.SESSIONS.get(env.SESSIONS.newUniqueId()).fetch(request)
     }
-    const session = url.pathname.match(SESSION_PATH)
-    if (session) return env.SESSIONS.get(env.SESSIONS.idFromString(session[1]!)).fetch(request)
-    if (url.pathname.startsWith("/s/")) return new Response("Not found", { status: 404 })
+    if (url.pathname.startsWith("/s/")) {
+      const hex = url.pathname.match(SESSION_PATH)?.[1]
+      const stub = hex ? sessionStub(env, hex) : undefined
+      return stub ? stub.fetch(request) : notFound()
+    }
     return pagesFor(env).handler(request)
   }
 } satisfies ExportedHandler<Env>
