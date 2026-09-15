@@ -1,6 +1,6 @@
 import { Effect, Layer, Semaphore } from "effect"
 import { HTMLRewriter } from "html-rewriter-wasm"
-import { SanitizeError, Sanitizer, sanitizerHandlers } from "../Sanitizer.js"
+import { SanitizeError, Sanitizer, sanitizerHandlers } from "../core/Sanitizer.js"
 
 /** The shared allowlist on Node, through lol-html compiled to WebAssembly. */
 export const layer: Layer.Layer<Sanitizer> = Layer.effect(

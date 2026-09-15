@@ -2,7 +2,7 @@ import { NodeHttpServer } from "@effect/platform-node"
 import { Layer } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { createServer } from "node:http"
-import { Routes } from "../http/Routes.js"
+import { Routes } from "../app/Routes.js"
 
 /** A Node HTTP server for every route. Requires `Sessions`. */
 export const layerServer = (options: { readonly port: number; readonly host: string }) =>

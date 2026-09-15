@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect } from "effect"
 import * as NodeSanitizer from "../src/node/Sanitizer.js"
-import { Sanitizer } from "../src/Sanitizer.js"
+import { Sanitizer } from "../src/core/Sanitizer.js"
 
 const sanitize = Effect.fn("sanitize")(function*(html: string) {
   const sanitizer = yield* Sanitizer

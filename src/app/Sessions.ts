@@ -12,10 +12,10 @@ import {
   Semaphore,
   Stream
 } from "effect"
-import { type ConvertOptions, Converter, step } from "./Converter.js"
-import { type DocumentInput, type DocumentState, initialState } from "./domain/Document.js"
-import { CONTRACT_VERSION, isTerminal, type LiveEvent } from "./domain/Events.js"
-import type { Source } from "./Source.js"
+import { type ConvertOptions, Converter, step } from "../core/Converter.js"
+import { type DocumentInput, type DocumentState, initialState } from "../core/domain/Document.js"
+import { CONTRACT_VERSION, isTerminal, type LiveEvent } from "../core/domain/Events.js"
+import type { Source } from "../core/Source.js"
 
 /**
  * Live sessions: each upload runs one conversion in the background and fans

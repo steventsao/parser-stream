@@ -1,7 +1,7 @@
 import { Config, Effect, Layer, Option, Redacted, Stream } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/unstable/http"
-import { Parser, ParserError, type ParseRequest } from "../Parser.js"
-import { ParserCredential } from "../ParserCredential.js"
+import { Parser, ParserError, type ParseRequest } from "../core/Parser.js"
+import { ParserCredential } from "../core/ParserCredential.js"
 
 /**
  * Bring your own parser, in any language, behind one HTTP endpoint.

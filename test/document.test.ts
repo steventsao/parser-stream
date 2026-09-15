@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { type DocumentInput, type DocumentState, initialState, reduce, validate } from "../src/domain/Document.js"
-import { encodeSse } from "../src/domain/Events.js"
+import { type DocumentInput, type DocumentState, initialState, reduce, validate } from "../src/core/domain/Document.js"
+import { encodeSse } from "../src/core/domain/Events.js"
 
 const run = (inputs: ReadonlyArray<DocumentInput>) => {
   let state: DocumentState = initialState

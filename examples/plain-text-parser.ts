@@ -5,7 +5,7 @@
  */
 import { NodeRuntime } from "@effect/platform-node"
 import { Console, Effect, Layer, Stream } from "effect"
-import { Converter, Document, Html, Parser } from "../src/index.js"
+import { Converter, Document, Html, Parser } from "../src/core/index.js"
 import { NodeSanitizer } from "../src/node/index.js"
 
 const PlainTextParser = Parser.fromFunction("plain-text", (request) =>

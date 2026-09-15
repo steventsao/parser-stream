@@ -3,12 +3,12 @@ import { NodeRuntime, NodeServices } from "@effect/platform-node"
 import { Console, Effect, FileSystem, Layer, Option, Stream } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 import { basename, extname } from "node:path"
-import { Converter, toDocument } from "./Converter.js"
-import { renderHtmlDocument } from "./domain/Document.js"
-import { ServerConfig } from "./http/Routes.js"
+import { Converter, toDocument } from "./core/Converter.js"
+import { renderHtmlDocument } from "./core/domain/Document.js"
+import { ServerConfig } from "./app/Routes.js"
 import { ConfigurationError, ConverterLive, SessionsLive } from "./node/App.js"
 import { layerServer } from "./node/Server.js"
-import { mediaTypeFromPath } from "./Source.js"
+import { mediaTypeFromPath } from "./core/Source.js"
 
 try {
   process.loadEnvFile()

@@ -14,29 +14,23 @@ Several v3 names changed in v4 (for example `Config.String`, `Context.Service`,
 
 ## The one rule
 
-Nothing above the parser knows how a parser works.
+Nothing above the parser knows how a parser works, and the core knows nothing about apps.
 
-| Layer | Owns | Must never |
-|---|---|---|
-| Runtime (`Converter`, `Sessions`, `http/`) | cut streamed HTML into complete blocks, sanitize, number, fan out, persist, serve | name a tag, a prompt, a model, or a credential |
-| Parser (`parsers/*`) | its prompt, the shape it asks for, decoding that shape with `Schema`, the HTML tags it emits, the credential it needs | reach into the runtime |
-| Ports (`Parser`, `Splitter`, `Sanitizer`, `SessionStore`, `ServerConfig`, `ParserCredential`) | the seams, declared as Effect services | hide a dependency |
+| Directory | Package entry | Owns | Must never |
+|---|---|---|---|
+| `src/core/` | `parser-stream` | the block contract (cut, sanitize, number), the document reducer, the event stream, and the ports | name a tag, a prompt, a model, a credential, a transport, or a route; import an adapter |
+| `src/parsers/` | `parser-stream/parsers` | each parser's prompt, requested shape, decoding, tags, and credential | reach into the core's internals or the app |
+| `src/splitters/` | `parser-stream/splitters` | cutting a source into parts | anything else |
+| `src/app/` | `parser-stream/app` | live sessions and the HTTP/SSE transport: routes, pages, replay | become the only way to use the core |
+| `src/node/`, `src/workers/` | `parser-stream/node`, `/workers/*` | host wiring: sanitizer, server, Durable Object, env config | hold engine logic |
 
-## Layout
-
-- `src/domain/` is pure: string transforms, the document reducer, the wire contract. No Effect services, no IO.
-- `src/Parser.ts`, `src/Splitter.ts`, `src/Sanitizer.ts`, `src/Sessions.ts` define services (ports).
-- `src/parsers/` holds parsers. `ParseBench.ts` is the default: prompts, a `Schema`-typed `LayoutElement`, and the only code that turns an element into HTML.
-- `src/splitters/` splits a source into parts (PDF pages today).
-- `src/Converter.ts` is the engine. It depends on ports only.
-- `src/http/` holds the shared web routes and the plain UI (upload → 303 → `/s/:id` streams).
-- `src/node/` is Node-only (lol-html sanitizer, env wiring, HTTP server). `src/bin.ts` is the CLI.
-- `src/workers/` is Cloudflare-only. `worker.ts` is the deploy entry: the Worker serves pages, one Durable Object per session runs `SessionRoutes`.
+The core produces an event stream. HTTP with Server-Sent Events is one transport for it, and it lives in `src/app/`. A different app can put the same stream on a WebSocket, a queue, or a file without touching the core.
 
 ## Rules
 
 - A parser is any `Source` in, HTML text stream out. Do not add PDF assumptions outside `src/splitters/Pdf.ts`.
 - A parser that needs a secret reads `ParserCredential` and raises its own error. The engine passes no keys.
+- `Converter.layer` requires all three ports (`Parser`, `Sanitizer`, `Splitter`). The host wiring provides them.
 - Every block a parser produces crosses `Sanitizer` before it is stored or sent. Server-built wrappers are added after.
 - Nothing outside `src/node/` may import `node:*`, `@effect/platform-node`, or `html-rewriter-wasm`: the Worker bundles the rest.
 - A caller's key stays in memory. Never store, log, or return it.

@@ -1,5 +1,5 @@
 import { Effect, Layer } from "effect"
-import { SanitizeError, Sanitizer, sanitizerHandlers } from "../Sanitizer.js"
+import { SanitizeError, Sanitizer, sanitizerHandlers } from "../core/Sanitizer.js"
 
 interface NativeHtmlRewriter {
   on(selector: string, handlers: typeof sanitizerHandlers): NativeHtmlRewriter

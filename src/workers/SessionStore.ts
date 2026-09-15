@@ -1,5 +1,5 @@
 import { Clock, Effect, Layer, Option } from "effect"
-import { type SessionSnapshot, SessionStore } from "../Sessions.js"
+import { type SessionSnapshot, SessionStore } from "../app/Sessions.js"
 
 /** The part of Durable Object storage this adapter uses. */
 export interface KeyValueStorage {

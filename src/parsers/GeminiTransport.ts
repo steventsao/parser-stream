@@ -1,7 +1,7 @@
 import { Effect, Encoding, Redacted, Schema, Stream } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/unstable/http"
-import { ParserError } from "../Parser.js"
-import type { Source } from "../Source.js"
+import { ParserError } from "../core/Parser.js"
+import type { Source } from "../core/Source.js"
 
 /**
  * Shared Gemini streaming transport. It carries bytes and prompts to the

@@ -1,7 +1,7 @@
 import { Config, Effect, Layer, Option, type Redacted, Stream } from "effect"
 import { HttpClient } from "effect/unstable/http"
-import { Parser, ParserError, type ParseRequest, type PartRef } from "../Parser.js"
-import { ParserCredential } from "../ParserCredential.js"
+import { Parser, ParserError, type ParseRequest, type PartRef } from "../core/Parser.js"
+import { ParserCredential } from "../core/ParserCredential.js"
 import * as GeminiTransport from "./GeminiTransport.js"
 
 /**

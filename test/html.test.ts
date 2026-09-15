@@ -8,7 +8,7 @@ import {
   stampFigurePage,
   withRootId,
   wrapTable
-} from "../src/domain/Html.js"
+} from "../src/core/domain/Html.js"
 
 describe("extractBlocks", () => {
   it("cuts complete top-level blocks and keeps the incomplete tail", () => {

@@ -1,10 +1,10 @@
 import { Effect, Layer, Option, Redacted, Stream } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { describe, expect, it } from "vitest"
-import { Routes, ServerConfig, type ServerOptions } from "../src/http/Routes.js"
-import type { PartRef } from "../src/Parser.js"
-import { ParserCredential } from "../src/ParserCredential.js"
-import { Sessions } from "../src/Sessions.js"
+import { Routes, ServerConfig, type ServerOptions } from "../src/app/Routes.js"
+import type { PartRef } from "../src/core/Parser.js"
+import { ParserCredential } from "../src/core/ParserCredential.js"
+import { Sessions } from "../src/app/Sessions.js"
 import { chunked, converterWith, makePdf } from "./fixtures.js"
 
 interface Seen {

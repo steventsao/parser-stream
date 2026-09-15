@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Layer, Option, Stream } from "effect"
-import { type SessionSnapshot, Sessions, SessionStore } from "../src/Sessions.js"
+import { type SessionSnapshot, Sessions, SessionStore } from "../src/app/Sessions.js"
 import { chunked, converterWith, imageSource, partChunks, pdfSource } from "./fixtures.js"
 
 const SessionsTest = Sessions.layer.pipe(

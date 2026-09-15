@@ -1,4 +1,15 @@
-/** Runtime-neutral core. Node adapters: `./node`. Cloudflare adapters: `./workers`. */
+/**
+ * The core: the parser port, the streaming DOM engine, and the document input
+ * it understands.
+ *
+ * It holds the block contract (cut, sanitize, number), the document reducer,
+ * the event stream, the ports a parser plugs into, and PDF page splitting,
+ * which is common enough to belong here. It has no HTTP, no sessions, no
+ * storage, and no transport, so you can build your own app on it.
+ *
+ * - concrete parsers: `parser-stream/parsers`
+ * - live sessions, HTTP routes, and a plain UI: `parser-stream/app`
+ */
 export {
   ContractError,
   type ConvertError,
@@ -14,13 +25,8 @@ export {
 export * as Document from "./domain/Document.js"
 export * as Events from "./domain/Events.js"
 export * as Html from "./domain/Html.js"
-export { PageRoutes, Routes, ServerConfig, type ServerOptions, SessionRoutes } from "./http/Routes.js"
 export { Parser, ParserError, type ParseRequest, type PartRef } from "./Parser.js"
 export * as ParserCredential from "./ParserCredential.js"
-export * as GeminiParser from "./parsers/Gemini.js"
-export * as GeminiTransport from "./parsers/GeminiTransport.js"
-export * as HttpParser from "./parsers/Http.js"
-export * as ParseBenchParser from "./parsers/ParseBench.js"
 export {
   type RewriterComment,
   type RewriterElement,
@@ -28,16 +34,6 @@ export {
   Sanitizer,
   sanitizerHandlers
 } from "./Sanitizer.js"
-export {
-  type CreateSession,
-  NewSessionId,
-  type SessionInfo,
-  SessionNotFound,
-  Sessions,
-  type SessionSnapshot,
-  SessionStore,
-  type SessionStoreService
-} from "./Sessions.js"
 export * as Source from "./Source.js"
-export { type Split, SplitError, Splitter } from "./Splitter.js"
 export * as PdfSplitter from "./splitters/Pdf.js"
+export { type Split, SplitError, Splitter } from "./Splitter.js"

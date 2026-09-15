@@ -3,8 +3,8 @@ import { assert, layer } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter, HttpServer } from "effect/unstable/http"
 import { request as httpRequest } from "node:http"
-import { Routes, ServerConfig } from "../src/http/Routes.js"
-import { Sessions } from "../src/Sessions.js"
+import { Routes, ServerConfig } from "../src/app/Routes.js"
+import { Sessions } from "../src/app/Sessions.js"
 import { chunked, converterWith, makePdf } from "./fixtures.js"
 
 const TestServer = HttpRouter.serve(Routes, { disableLogger: true, disableListenLog: true }).pipe(

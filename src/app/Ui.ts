@@ -1,5 +1,5 @@
-import { DOCUMENT_CSS, type DocumentState } from "../domain/Document.js"
-import { escapeHtml } from "../domain/Html.js"
+import { DOCUMENT_CSS, type DocumentState } from "../core/domain/Document.js"
+import { escapeHtml } from "../core/domain/Html.js"
 
 /**
  * A deliberately plain demo: pick a file, get redirected to its page, and

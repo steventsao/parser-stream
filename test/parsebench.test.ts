@@ -1,6 +1,6 @@
 import { assert, describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, Stream } from "effect"
-import { Parser } from "../src/Parser.js"
+import { Parser } from "../src/core/Parser.js"
 import * as ParseBenchParser from "../src/parsers/ParseBench.js"
 import { type CapturedRequest, fakeGemini, geminiSse, imageSource, pdfSource, withKey } from "./fixtures.js"
 

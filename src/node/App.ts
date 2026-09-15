@@ -1,11 +1,11 @@
 import { Config, Effect, Layer, Option, Schema } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
-import { Converter } from "../Converter.js"
-import type { Parser } from "../Parser.js"
+import { Converter } from "../core/Converter.js"
+import type { Parser } from "../core/Parser.js"
 import * as GeminiParser from "../parsers/Gemini.js"
 import * as HttpParser from "../parsers/Http.js"
 import * as ParseBenchParser from "../parsers/ParseBench.js"
-import { Sessions } from "../Sessions.js"
+import { Sessions } from "../app/Sessions.js"
 import * as NodeSanitizer from "./Sanitizer.js"
 
 /**
@@ -40,6 +40,8 @@ export const ParserFromEnv: Layer.Layer<Parser, ConfigurationError | Config.Conf
   })
 ).pipe(Layer.provide(FetchHttpClient.layer))
 
-export const ConverterLive = Converter.layer.pipe(Layer.provide([ParserFromEnv, NodeSanitizer.layer]))
+export const ConverterLive = Converter.layer.pipe(
+  Layer.provide([ParserFromEnv, NodeSanitizer.layer])
+)
 
 export const SessionsLive = Sessions.layer.pipe(Layer.provide(ConverterLive))

@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Stream } from "effect"
-import { Converter, toDocument } from "../src/Converter.js"
-import type { ConvertEvent } from "../src/domain/Events.js"
+import { Converter, toDocument } from "../src/core/Converter.js"
+import type { ConvertEvent } from "../src/core/domain/Events.js"
 import { chunked, converterWith, imageSource, partChunks, parserError, pdfSource } from "./fixtures.js"
 
 describe("Converter whole mode", () => {

@@ -4,42 +4,67 @@ Stream a document into clean, sanitized, semantic HTML, block by block, while th
 
 **Live demo: https://parser-stream.steventsao.workers.dev** — bring your own [Gemini API key](https://aistudio.google.com/apikey); it is used for your upload only and never stored. Anyone with a document's link can view it, and the demo deletes documents 7 days after they finish, so do not upload anything sensitive.
 
-- **Redirect, then stream.** Upload a file, land on its page right away, and watch it fill in.
-- **Bring your own key.** A key can come with each upload (never stored) or from the server.
-- **Bring your own parser.** One port, one function.
+- **A small core.** A parser port and a streaming DOM engine. No HTTP, no sessions, no storage.
+- **Bring your own parser.** One function: bytes in, HTML text out.
+- **Bring your own key.** A key can ride with each upload, or come from the server.
 - **Not only PDFs.** Input is bytes plus a media type.
-- **Runs on Node or Cloudflare Workers.** Built with [Effect](https://effect.website) v4.
+- **Runs on Node or Cloudflare Workers.** Built with [Effect](https://effect.website) v4: every seam is a layer.
 
-## Three layers, one rule
+## Layers
 
-**Nothing above the parser knows how a parser works.**
+**Nothing above the parser knows how a parser works, and the core knows nothing about apps.**
 
 ```
-┌─ Runtime ─────────────────────────────────────────────────────────────┐
-│  cut complete blocks · sanitize · number · fan out · persist · serve  │
-│  Converter · Sessions · routes        knows no tag, prompt, or key    │
-└───────────────────────────▲───────────────────────────────────────────┘
-        HTML text (chunks can split anywhere, even mid-tag)
-┌───────────────────────────┴───────────────────────────────────────────┐
-│  Parser: its prompt · the shape it asks for · decoding that shape     │
-│  with Schema · the tags it emits · the credential it needs            │
-│  ParseBenchParser · GeminiParser · HttpParser · yours                 │
-└───────────────────────────▲───────────────────────────────────────────┘
-                     Source: bytes + media type
+   parser-stream/app        sessions · HTTP + SSE transport · routes · plain UI
+            ▲                            (one app; write your own instead)
+            │  events: append · replace · progress · done
+┌───────────┴───────────────────────────────────────────────────────────┐
+│  parser-stream (core)                                                 │
+│  cut complete blocks · sanitize · number · reduce to a document        │
+│  Converter · ports: Parser, Splitter, Sanitizer                       │
+└───────────▲───────────────────────────────────────────────────────────┘
+            │  HTML text (chunks can split anywhere, even mid-tag)
+   parser-stream/parsers    prompt · requested shape · decoding · tags · credential
+            ▲
+            │  Source: bytes + media type
 ```
 
-Every seam is an Effect service, so each one is a layer you swap:
+The core produces an **event stream**. A transport carries it: the app uses HTTP with Server-Sent Events, and a different app can put the same stream on a WebSocket, a queue, or a file without touching the core.
+
+| Import | Holds |
+|---|---|
+| `parser-stream` | the core: `Converter`, `Parser`, `Splitter`, `Sanitizer`, `ParserCredential`, the document reducer, the event contract |
+| `parser-stream/parsers` | `ParseBenchParser` (default), `GeminiParser`, `HttpParser` |
+| `parser-stream/splitters` | `PdfSplitter` (pdf-lib pages) |
+| `parser-stream/app` | `Sessions`, `Routes`, `ServerConfig`, `Ui` |
+| `parser-stream/node` | Node sanitizer, env wiring, HTTP server |
+| `parser-stream/workers/*` | Cloudflare sanitizer and Durable Object session store |
+
+Every port is an Effect service, so each is a layer you swap:
 
 | Port | Default | Swap it to |
 |---|---|---|
 | `Parser` | `ParseBenchParser` | any model, OCR engine, or layout parser |
-| `Splitter` | `PdfSplitter` (pdf-lib pages) | slides, sheets, image sets; `Splitter.none` to never split |
+| `Splitter` | `PdfSplitter` | slides, sheets, image sets; `Splitter.none` to never split |
 | `Sanitizer` | `NodeSanitizer` / the Workers `HTMLRewriter` | a tighter or wider allowlist |
 | `SessionStore` | nothing kept; Durable Object storage on Workers | Redis, a database |
 | `ServerConfig` | `ServerConfig.layer({ … })` | upload limits, media types, key field |
 | `ParserCredential` | none | the per-upload secret a parser reads |
 
-The engine passes no credentials. A parser that needs one reads `ParserCredential`, which the server fills from the upload, and raises its own error when it is missing.
+`Converter.layer` requires all three ports, and your wiring provides them:
+
+```ts
+import { Converter } from "parser-stream"
+import { ParseBenchParser } from "parser-stream/parsers"
+import { PdfSplitter } from "parser-stream/splitters"
+import { NodeSanitizer } from "parser-stream/node"
+
+const ConverterLive = Converter.layer.pipe(
+  Layer.provide([ParseBenchParser.layerConfig, NodeSanitizer.layer, PdfSplitter.layer])
+)
+```
+
+The engine passes no credentials. A parser that needs one reads `ParserCredential`, which the app fills from the upload, and raises its own error when it is missing.
 
 ## Quick start (Node)
 
@@ -53,7 +78,7 @@ pnpm install
 cp .env.example .env
 ```
 
-Put `GEMINI_API_KEY=...` in `.env`, or leave it empty and paste a key in the upload form. Then start the demo on http://127.0.0.1:3000:
+Put `GEMINI_API_KEY=...` in `.env`, or leave it empty and paste a key in the upload form. Then start the demo app on http://127.0.0.1:3000:
 
 ```bash
 pnpm cli serve
@@ -92,9 +117,9 @@ API_KEY=your-key scripts/smoke.sh https://parser-stream.<you>.workers.dev exampl
 `ParseBenchParser` runs the layout prompt we use for [ParseBench](https://github.com/run-llama/ParseBench) runs on Gemini Flash: markdown content, HTML tables, and one `<div data-bbox data-label>` wrapper per layout element, labelled with the DocLayNet categories. The parser then decodes and renders it:
 
 ```
-Gemini  →  <div data-label="Title" data-bbox="[10,20,30,40]" data-page="1">Season Report</div>
-        →  LayoutElement { label: "Title", bbox: [10,20,30,40], page: 1, content: "Season Report" }   (Schema)
-        →  <h1 data-page="1" data-bbox="10,20,30,40">Season Report</h1>                               (render)
+Gemini  →  <div data-label="Title" data-bbox="[58,98,83,887]" data-page="1">Season Report</div>
+        →  LayoutElement { label: "Title", bbox: [58,98,83,887], page: 1, content: "Season Report" }   (Schema)
+        →  <h1 data-page="1" data-bbox="58,98,83,887">Season Report</h1>                               (render)
 ```
 
 `LayoutLabel`, `LayoutBbox`, and `LayoutElement` are `Schema` types, so the shape is checked, and an unknown label or a malformed box degrades to `Text` instead of failing the conversion. `render` is the only code that picks a tag: `Title` → `<h1>`, `Section-header` → `<h2>`, `List-item` → grouped `<ul>`, `Picture` → `<figure>`, `Table` → the model's own table, and running headers and footers are dropped.
@@ -103,7 +128,7 @@ Take the typed elements for your own use (crops, search indexes, evaluation) wit
 
 ```ts
 import { Effect, Redacted, Stream } from "effect"
-import { ParseBenchParser } from "parser-stream"
+import { ParseBenchParser } from "parser-stream/parsers"
 
 const elements = ParseBenchParser.elements(
   { bytes, mediaType: "application/pdf" },
@@ -119,11 +144,12 @@ Stream.runForEach(elements, (element) => Effect.log(`${element.label} ${element.
 
 ### In TypeScript
 
-A parser is a `Stream` of HTML text. Chunks can split anywhere: the runtime buffers them, cuts out complete top-level elements, sanitizes each one, and assigns ids.
+A parser is a `Stream` of HTML text. Chunks can split anywhere: the core buffers them, cuts out complete top-level elements, sanitizes each one, and assigns ids.
 
 ```ts
 import { Effect, Layer, Stream } from "effect"
 import { Converter, Document, Parser } from "parser-stream"
+import { PdfSplitter } from "parser-stream/splitters"
 import { NodeSanitizer } from "parser-stream/node"
 
 const MyParser = Parser.fromFunction("my-parser", ({ part, source }) =>
@@ -134,7 +160,9 @@ const program = Effect.gen(function*() {
   const converter = yield* Converter
   const document = yield* converter.render({ bytes, mediaType: "application/pdf" })
   return Document.renderHtmlDocument({ title: "Report", blocks: document.blocks })
-}).pipe(Effect.provide(Converter.layer.pipe(Layer.provide([MyParser, NodeSanitizer.layer]))))
+}).pipe(
+  Effect.provide(Converter.layer.pipe(Layer.provide([MyParser, NodeSanitizer.layer, PdfSplitter.layer])))
+)
 ```
 
 `ParseRequest` has two fields: `source` (`{ bytes, mediaType, name? }`) and `part` (`{ unit, index, total }`, set when the source is one part of a larger document). Read `ParserCredential` for the caller's secret. See `examples/plain-text-parser.ts` for a parser with no model at all.
@@ -176,7 +204,9 @@ PARSER=http PARSER_URL=http://127.0.0.1:8000/parse pnpm cli convert examples/sam
 
 A streaming part also paints the finished rows of a table that has not closed yet, so a long table does not stall the page.
 
-## HTTP routes
+## The app layer
+
+`parser-stream/app` is one app over the core: live sessions plus an HTTP and SSE transport.
 
 | Method | Path | Notes |
 |---|---|---|
@@ -206,7 +236,7 @@ Each SSE frame has `id: <seq>`, `event: <type>`, and `data: <json>`.
 - `append` and `replace` carry exactly one complete element whose root id is the addressed id.
 - A stream ends with exactly one `done` or `error`.
 
-Schemas for these events are exported as `Events.LiveEvent`.
+The events themselves come from the core (`Events.LiveEvent`, `Converter.convert`), so another transport can carry them unchanged.
 
 ## Security
 

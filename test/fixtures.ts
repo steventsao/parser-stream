@@ -1,11 +1,12 @@
 import { Effect, Layer, Option, Redacted, Stream } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/unstable/http"
 import { PDFDocument } from "pdf-lib"
-import { Converter } from "../src/Converter.js"
+import { Converter } from "../src/core/Converter.js"
 import * as NodeSanitizer from "../src/node/Sanitizer.js"
-import { Parser, ParserError, type ParseRequest } from "../src/Parser.js"
-import { provide } from "../src/ParserCredential.js"
-import type { Source } from "../src/Source.js"
+import { Parser, ParserError, type ParseRequest } from "../src/core/Parser.js"
+import { provide } from "../src/core/ParserCredential.js"
+import type { Source } from "../src/core/Source.js"
+import * as PdfSplitter from "../src/core/splitters/Pdf.js"
 
 export const makePdf = (pages: number): Effect.Effect<Uint8Array> =>
   Effect.promise(async () => {
@@ -34,7 +35,7 @@ export const fakeParser = (parse: (request: ParseRequest) => Stream.Stream<strin
   Parser.fromFunction("fake", parse)
 
 export const converterWith = (parse: (request: ParseRequest) => Stream.Stream<string, ParserError>) =>
-  Converter.layer.pipe(Layer.provide([fakeParser(parse), NodeSanitizer.layer]))
+  Converter.layerNoDeps.pipe(Layer.provide([fakeParser(parse), NodeSanitizer.layer, PdfSplitter.layer]))
 
 export const parserError = (message: string) => new ParserError({ parser: "fake", message })
 
