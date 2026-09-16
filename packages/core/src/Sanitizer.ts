@@ -58,6 +58,14 @@ export interface RewriterComment {
   remove(): unknown
 }
 
+/** A text chunk. A rewriter may split one text node into several of these. */
+export interface RewriterText {
+  readonly text: string
+  readonly lastInTextNode: boolean
+  replace(content: string, options?: { html?: boolean }): unknown
+  remove(): unknown
+}
+
 /** Rewriter handlers for the allowlist. Register them on `*`. */
 export const sanitizerHandlers = {
   element(el: RewriterElement) {

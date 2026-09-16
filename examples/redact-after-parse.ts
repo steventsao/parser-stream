@@ -1,28 +1,31 @@
 /**
- * Redact after the parser, before anything is stored or sent.
+ * Redact a document as it is parsed, with declared HTML handlers.
  *
  *   pnpm tsx examples/redact-after-parse.ts
  *
- * A post-parse hook runs on every finished block, after the sanitizer. The
- * core cuts complete blocks out of a parser's stream, so a hook always sees
- * whole HTML. A redactor inside a parser would not: the fake parser below
- * emits `123-4` and then `5-6789`, and the redaction still works.
+ * A handler runs while the runtime rewrites a finished block, in the same pass
+ * as the allowlist. It receives the text of a node, not a string of markup, so
+ * nothing here matches HTML by hand.
  *
- * The sanitizer runs first on purpose. It is the security boundary, and it
- * unwraps unknown tags, so it surfaces text the hook must see.
+ * The parser below emits `123-4` and then `5-6789`, the way a real model does.
+ * The core cuts the complete block first, so the handler always sees whole
+ * text.
+ *
+ * The allowlist runs first and keeps the script out of the output. It does not
+ * limit what a handler observes: a handler on `*` still sees the text inside a
+ * dropped element, so treat what it sees as untrusted.
  */
 import { NodeRuntime } from "@effect/platform-node"
 import { NodeSanitizer } from "@parser-stream/node"
 import { Console, Effect, Layer, Stream } from "effect"
-import { Converter, Document, HtmlStream, PostParse, Source } from "parser-stream"
+import { Converter, Document, HtmlHandlers, HtmlStream, Source } from "parser-stream"
 
-/** A plain function is enough here. A real redactor may call out over HTTP: use `PostParse.make`. */
-const redact = PostParse.sync("redact", (html) =>
-  html
+/** Text in, text out. */
+const redact = HtmlHandlers.text("*", (text) =>
+  text
     .replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[SSN]")
     .replace(/\bJohn Smith\b/g, "[PERSON]"))
 
-/** Splits an SSN and a name across chunk boundaries, the way a real model does. */
 const FakeParser = HtmlStream.fromFunction("fake", () =>
   Stream.fromIterable([
     "<h1>Case file</h1><p>Filed by John Sm",
@@ -36,8 +39,8 @@ const program = Effect.gen(function*() {
   yield* Console.log(Document.renderHtmlDocument({ title: "Redacted", blocks: document.blocks }))
 }).pipe(
   Effect.provide(Converter.layer.pipe(Layer.provide([FakeParser, NodeSanitizer.layer]))),
-  // The hooks go to the program, because the converter reads them from the running fiber.
-  Effect.provide(PostParse.layer(redact))
+  // Handlers go to the program: the sanitizer reads them from the running fiber.
+  Effect.provide(HtmlHandlers.layer(redact))
 )
 
 NodeRuntime.runMain(program)

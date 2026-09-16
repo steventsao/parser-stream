@@ -38,7 +38,7 @@ The core produces an event stream. HTTP with Server-Sent Events is one transport
 ## Rules
 
 - A source is bytes plus a media type. Do not add PDF assumptions outside `packages/core/src/splitters/Pdf.ts`.
-- Every block a plugin produces crosses `Sanitizer`, and then the `PostParse` hooks, before it is stored or sent. Server-built wrappers are added after. Sanitizing stays first: it is the security boundary, and it surfaces text a hook must see.
+- Every block a plugin produces crosses `Sanitizer` before it is stored or sent. Server-built wrappers are added after. Declared `HtmlHandlers` run in that same pass, always after the allowlist: it is the security boundary, and it surfaces text a handler must see.
 - Only `packages/node` and `apps/cli` may import `node:*`, `@effect/platform-node`, or `html-rewriter-wasm`: the Worker bundles the rest.
 - A caller's key stays in memory. Never store, log, or return it.
 - Send a key in a header, never in a URL. Effect redacts only `authorization`, `cookie`, `set-cookie`, and `x-api-key`, so add any other auth header to `Headers.CurrentRedactedNames`, as `packages/gemini/src/Transport.ts` does with `x-goog-api-key`.

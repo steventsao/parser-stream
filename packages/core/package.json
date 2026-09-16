@@ -14,6 +14,7 @@
     ".": "./src/index.ts",
     "./Converter": "./src/Converter.ts",
     "./HtmlStream": "./src/HtmlStream.ts",
+    "./HtmlHandlers": "./src/HtmlHandlers.ts",
     "./Credential": "./src/Credential.ts",
     "./Sanitizer": "./src/Sanitizer.ts",
     "./Source": "./src/Source.ts",
@@ -40,6 +41,10 @@
       "./HtmlStream": {
         "types": "./dist/HtmlStream.d.ts",
         "default": "./dist/HtmlStream.js"
+      },
+      "./HtmlHandlers": {
+        "types": "./dist/HtmlHandlers.d.ts",
+        "default": "./dist/HtmlHandlers.js"
       },
       "./Credential": {
         "types": "./dist/Credential.d.ts",
