@@ -5,7 +5,7 @@ import { Converter } from "parser-stream/Converter"
 import * as NodeSanitizer from "@parser-stream/node/Sanitizer"
 import { HtmlStream, HtmlStreamError, type HtmlStreamRequest } from "parser-stream/HtmlStream"
 import { provide } from "parser-stream/Credential"
-import type { Source } from "parser-stream/Source"
+import * as Source from "parser-stream/Source"
 import * as PdfSplitter from "parser-stream/splitters/Pdf"
 
 /**
@@ -19,10 +19,10 @@ export const makePdf = (pages: number): Effect.Effect<Uint8Array> =>
     return document.save()
   })
 
-export const pdfSource = (pages: number): Effect.Effect<Source> =>
-  Effect.map(makePdf(pages), (bytes) => ({ bytes, mediaType: "application/pdf", name: "test" }))
+export const pdfSource = (pages: number): Effect.Effect<Source.Source> =>
+  Effect.map(makePdf(pages), (bytes) => Source.pdf(bytes, "test"))
 
-export const imageSource: Source = { bytes: new Uint8Array([137, 80, 78, 71]), mediaType: "image/png", name: "scan" }
+export const imageSource: Source.Source = Source.png(new Uint8Array([137, 80, 78, 71]), "scan")
 
 /** Emits `chunks` one by one with an optional delay between them. */
 export const chunked = (chunks: ReadonlyArray<string>, delayMs = 0): Stream.Stream<string, HtmlStreamError> =>

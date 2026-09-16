@@ -35,12 +35,14 @@ The plugin owns that whole path, end to end:
 Want the boxes without any HTML, for crops, search, or evaluation? Take the typed stream. The key arrives the way Effect does request-scoped values, through the `Credential` reference, and the HTTP client comes from a layer:
 
 ```ts
+import { readFile } from "node:fs/promises"
 import { Effect, Option, Redacted, Stream } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
 import { GeminiFlashParseBenchParser } from "@parser-stream/gemini"
-import { Credential } from "parser-stream"
+import { Credential, Source } from "parser-stream"
 
-const elements = GeminiFlashParseBenchParser.elements({ bytes, mediaType: "application/pdf" })
+const bytes = new Uint8Array(await readFile("report.pdf"))
+const elements = GeminiFlashParseBenchParser.elements(Source.pdf(bytes, "report.pdf"))
 
 const program = Credential.provide(
   Stream.runForEach(elements, (element) => Effect.log(`${element.label} ${element.bbox?.join(",") ?? ""}`)),
@@ -93,17 +95,20 @@ The core produces an **event stream**. A transport carries it: the app uses HTTP
 A plugin is one function: a `Source` in, a stream of HTML text out. Chunks can split anywhere, even mid-tag; the core buffers them, cuts out complete top-level elements, sanitizes each one, and assigns ids.
 
 ```ts
+import { readFile } from "node:fs/promises"
 import { Effect, Layer, Stream } from "effect"
-import { Converter, Document, HtmlStream } from "parser-stream"
+import { Converter, Document, HtmlStream, Source } from "parser-stream"
 import { NodeSanitizer } from "@parser-stream/node"
 
 const MyPlugin = HtmlStream.fromFunction("my-plugin", ({ part, source }) =>
   Stream.fromIterable([`<h1>${source.mediaType}</h1>`, `<p>part ${part?.index ?? "all"}</p>`])
 )
 
+const bytes = new Uint8Array(await readFile("report.pdf"))
+
 const program = Effect.gen(function*() {
   const converter = yield* Converter
-  const document = yield* converter.render({ bytes, mediaType: "application/pdf" })
+  const document = yield* converter.render(Source.pdf(bytes, "report.pdf"))
   return Document.renderHtmlDocument({ title: "Report", blocks: document.blocks })
 }).pipe(Effect.provide(Converter.layer.pipe(Layer.provide([MyPlugin, NodeSanitizer.layer]))))
 ```

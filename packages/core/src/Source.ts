@@ -13,6 +13,26 @@ export interface Source {
 
 export const make = (bytes: Uint8Array, mediaType: string, name?: string): Source => ({ bytes, mediaType, name })
 
+/**
+ * The media types this repository names. Use a constructor below instead of
+ * writing one of these strings at a call site. `make` stays for a media type
+ * that arrives as data, such as the `content-type` of an upload.
+ */
+export const PDF = "application/pdf"
+export const PNG = "image/png"
+export const JPEG = "image/jpeg"
+export const PLAIN_TEXT = "text/plain"
+
+export const pdf = (bytes: Uint8Array, name?: string): Source => make(bytes, PDF, name)
+export const png = (bytes: Uint8Array, name?: string): Source => make(bytes, PNG, name)
+export const jpeg = (bytes: Uint8Array, name?: string): Source => make(bytes, JPEG, name)
+
+/** Plain text, encoded as UTF-8. */
+export const text = (content: string, name?: string): Source =>
+  make(new TextEncoder().encode(content), PLAIN_TEXT, name)
+
+export const isPdf = (source: Source): boolean => source.mediaType === PDF
+
 const BY_EXTENSION: Readonly<Record<string, string>> = {
   pdf: "application/pdf",
   png: "image/png",

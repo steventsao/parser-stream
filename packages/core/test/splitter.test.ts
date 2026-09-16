@@ -2,6 +2,7 @@ import { imageSource } from "@parser-stream/testkit"
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Option } from "effect"
 import { PDFDocument } from "pdf-lib"
+import * as Source from "parser-stream/Source"
 import { Splitter } from "parser-stream/Splitter"
 import * as PdfSplitter from "parser-stream/splitters/Pdf"
 
@@ -29,7 +30,7 @@ describe("PdfSplitter", () => {
     Effect.gen(function*() {
       const splitter = yield* Splitter
       const bytes = yield* twoPagePdf
-      const split = Option.getOrThrow(yield* splitter.split({ bytes, mediaType: "application/pdf" }))
+      const split = Option.getOrThrow(yield* splitter.split(Source.pdf(bytes)))
 
       assert.strictEqual(split.unit, "page")
       assert.strictEqual(split.count, 2)
@@ -44,7 +45,7 @@ describe("PdfSplitter", () => {
     Effect.gen(function*() {
       const splitter = yield* Splitter
       const bytes = yield* twoPagePdf
-      const split = Option.getOrThrow(yield* splitter.split({ bytes, mediaType: "application/pdf" }))
+      const split = Option.getOrThrow(yield* splitter.split(Source.pdf(bytes)))
       // pdf-lib shares one document, so the splitter serializes the copies. Both must still be right.
       const parts = yield* Effect.all([split.part(1), split.part(2)], { concurrency: 2 })
       assert.deepStrictEqual(yield* shapeOf(parts[0].bytes), { pages: 1, width: 200, height: 200 })
@@ -60,9 +61,7 @@ describe("PdfSplitter", () => {
   it.effect("fails with SplitError for bytes that are not a PDF", () =>
     Effect.gen(function*() {
       const splitter = yield* Splitter
-      const error = yield* splitter
-        .split({ bytes: new Uint8Array([1, 2, 3]), mediaType: "application/pdf" })
-        .pipe(Effect.flip)
+      const error = yield* splitter.split(Source.pdf(new Uint8Array([1, 2, 3]))).pipe(Effect.flip)
       assert.strictEqual(error._tag, "SplitError")
       assert.include(error.message, "Unable to read the PDF")
     }).pipe(Effect.provide(PdfSplitter.layer)))

@@ -1,11 +1,12 @@
 import { Effect, Layer, Option, Semaphore } from "effect"
 import { PDFDocument } from "pdf-lib"
+import * as Source from "../Source.js"
 import { type Split, SplitError, Splitter } from "../Splitter.js"
 
 /** Splits `application/pdf` sources into single-page PDFs with pdf-lib. Other media types are not split. */
 export const layer: Layer.Layer<Splitter> = Layer.succeed(Splitter)(Splitter.of({
   split: Effect.fn("PdfSplitter.split")(function*(source) {
-    if (source.mediaType !== "application/pdf") return Option.none<Split>()
+    if (!Source.isPdf(source)) return Option.none<Split>()
     const document = yield* Effect.tryPromise({
       try: () => PDFDocument.load(source.bytes, { ignoreEncryption: true }),
       catch: (cause) => new SplitError({ message: "Unable to read the PDF.", cause })
@@ -25,7 +26,7 @@ export const layer: Layer.Layer<Splitter> = Layer.succeed(Splitter)(Splitter.of(
           catch: (cause) => new SplitError({ message: `Unable to extract page ${index}.`, cause })
         })
       ).pipe(
-        Effect.map((bytes) => ({ bytes, mediaType: "application/pdf", name: source.name })),
+        Effect.map((bytes) => Source.pdf(bytes, source.name)),
         Effect.withSpan("PdfSplitter.part", { attributes: { index } })
       )
     return Option.some<Split>({ unit: "page", count: document.getPageCount(), part })
