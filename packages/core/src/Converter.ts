@@ -20,6 +20,7 @@ import {
   wrapTable
 } from "./domain/Html.js"
 import { HtmlStream, type HtmlStreamError, type PartRef } from "./HtmlStream.js"
+import { PostParse, type PostParseError, run as runPostParse } from "./PostParse.js"
 import { type SanitizeError, Sanitizer } from "./Sanitizer.js"
 import type { Source } from "./Source.js"
 import { type Split, SplitError, Splitter } from "./Splitter.js"
@@ -89,7 +90,13 @@ export class ContractError extends Schema.TaggedError<ContractError>()("Contract
   message: Schema.String
 }) {}
 
-export type ConvertError = HtmlStreamError | ParserIdleError | SanitizeError | SplitError | PartLimitError
+export type ConvertError =
+  | HtmlStreamError
+  | ParserIdleError
+  | SanitizeError
+  | PostParseError
+  | SplitError
+  | PartLimitError
 
 /** Validate and apply one input. `undefined` means the document is already terminal. */
 export const step = (
@@ -131,12 +138,24 @@ const make = Effect.gen(function*() {
   const sanitizer = yield* Sanitizer
   const splitter = yield* Splitter
 
+  /**
+   * Everything the core emits goes through here: the sanitizer first, then the
+   * post-parse hooks. A growing table's provisional rows leave the core too,
+   * so they cross the same pipeline. A hook can therefore see overlapping
+   * content more than once, and must be deterministic.
+   */
+  const prepare = (html: string) =>
+    Effect.gen(function*() {
+      const safe = yield* sanitizer.sanitize(html)
+      return yield* runPostParse(yield* PostParse, safe)
+    })
+
   const wholeStream = (source: Source, options: ConvertOptions): Stream.Stream<ConvertEvent, ConvertError> =>
     Stream.suspend(() => {
       let buffer = ""
       let count = 0
       const appendAll = (raw: ReadonlyArray<string>) =>
-        Effect.forEach(raw, (block) => Effect.map(sanitizer.sanitize(block), normalizeBlocks)).pipe(
+        Effect.forEach(raw, (block) => Effect.map(prepare(block), normalizeBlocks)).pipe(
           Effect.map((groups) =>
             groups.flat().map((html): ConvertEvent => {
               count += 1
@@ -167,7 +186,7 @@ const make = Effect.gen(function*() {
     source: Source,
     part: PartRef,
     options: ConvertOptions
-  ): Stream.Stream<ConvertEvent, HtmlStreamError | ParserIdleError | SanitizeError> =>
+  ): Stream.Stream<ConvertEvent, HtmlStreamError | ParserIdleError | SanitizeError | PostParseError> =>
     Stream.suspend(() => {
       const id = partBlockId(part.unit, part.index)
       const children: Array<string> = []
@@ -195,7 +214,7 @@ const make = Effect.gen(function*() {
       }
 
       const accept = (raw: string) =>
-        Effect.map(sanitizer.sanitize(raw), (clean) => {
+        Effect.map(prepare(raw), (clean) => {
           for (const block of normalizeBlocks(clean)) children.push(wrapTable(block))
           provisional = undefined
           provisionalChildren = 0
@@ -209,7 +228,7 @@ const make = Effect.gen(function*() {
         // Paint the finished rows of a table that has not closed yet, instead of waiting for `</table>`.
         const tail = provisionalTail(buffer)
         if (tail && tail.children > provisionalChildren) {
-          const split = extractBlocks(yield* sanitizer.sanitize(tail.html))
+          const split = extractBlocks(yield* prepare(tail.html))
           if (split.blocks.length === 1 && !split.rest.trim() && isCompleteElement(split.blocks[0]!)) {
             provisional = wrapTable(split.blocks[0]!)
             provisionalChildren = tail.children
@@ -267,7 +286,8 @@ const make = Effect.gen(function*() {
           SplitError: (error) => failed(index, error.message),
           HtmlStreamError: (error) => failed(index, error.message),
           ParserIdleError: (error) => failed(index, error.message),
-          SanitizeError: () => failed(index, "Its output could not be sanitized.")
+          SanitizeError: () => failed(index, "Its output could not be sanitized."),
+          PostParseError: (error) => failed(index, error.message)
         })
       )
 

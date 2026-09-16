@@ -3,43 +3,24 @@
  *
  *   pnpm tsx examples/redact-after-parse.ts
  *
- * The core calls `Sanitizer` once per **complete** block, so that is the seam a
- * redactor wants. A redactor cannot sit inside the parser: a parser emits
- * chunks that split anywhere, even mid-token, so `123-45-6789` can arrive as
- * `123-4` then `5-6789`. The fake parser below does exactly that, and the
- * redaction still works, because the core cuts the block first.
+ * A post-parse hook runs on every finished block, after the sanitizer. The
+ * core cuts complete blocks out of a parser's stream, so a hook always sees
+ * whole HTML. A redactor inside a parser would not: the fake parser below
+ * emits `123-4` and then `5-6789`, and the redaction still works.
  *
- * Order matters: sanitize first, redact second. Sanitizing is the security
- * boundary, and it unwraps unknown tags, so it can surface text that a
- * redactor would otherwise never see.
+ * The sanitizer runs first on purpose. It is the security boundary, and it
+ * unwraps unknown tags, so it surfaces text the hook must see.
  */
 import { NodeRuntime } from "@effect/platform-node"
 import { NodeSanitizer } from "@parser-stream/node"
 import { Console, Effect, Layer, Stream } from "effect"
-import { Converter, Document, HtmlStream, Sanitizer, Source } from "parser-stream"
+import { Converter, Document, HtmlStream, PostParse, Source } from "parser-stream"
 
-/** Stands in for a real redactor, such as a Presidio call. It may be async and may fail. */
-const redact = (html: string) =>
-  Effect.succeed(
-    html
-      .replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[SSN]")
-      .replace(/\bJohn Smith\b/g, "[PERSON]")
-  )
-
-/**
- * A decorator layer: it provides `Sanitizer` and also consumes the host's
- * `Sanitizer`, which `Layer.provide` supplies at build time. The core keeps its
- * three ports and needs no change.
- */
-const RedactingSanitizer = Layer.effect(
-  Sanitizer,
-  Effect.gen(function*() {
-    const base = yield* Sanitizer
-    return Sanitizer.of({
-      sanitize: (html) => Effect.flatMap(base.sanitize(html), redact)
-    })
-  })
-).pipe(Layer.provide(NodeSanitizer.layer))
+/** A plain function is enough here. A real redactor may call out over HTTP: use `PostParse.make`. */
+const redact = PostParse.sync("redact", (html) =>
+  html
+    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[SSN]")
+    .replace(/\bJohn Smith\b/g, "[PERSON]"))
 
 /** Splits an SSN and a name across chunk boundaries, the way a real model does. */
 const FakeParser = HtmlStream.fromFunction("fake", () =>
@@ -53,6 +34,10 @@ const program = Effect.gen(function*() {
   const converter = yield* Converter
   const document = yield* converter.render(Source.text("ignored by the fake parser"))
   yield* Console.log(Document.renderHtmlDocument({ title: "Redacted", blocks: document.blocks }))
-}).pipe(Effect.provide(Converter.layer.pipe(Layer.provide([FakeParser, RedactingSanitizer]))))
+}).pipe(
+  Effect.provide(Converter.layer.pipe(Layer.provide([FakeParser, NodeSanitizer.layer]))),
+  // The hooks go to the program, because the converter reads them from the running fiber.
+  Effect.provide(PostParse.layer(redact))
+)
 
 NodeRuntime.runMain(program)

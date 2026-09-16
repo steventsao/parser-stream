@@ -68,7 +68,7 @@ Multi-page PDFs are split into pages and converted in parallel, so page 3 can fi
             │  events: append · replace · progress · done
 ┌───────────┴───────────────────────────────────────────────────────────┐
 │  parser-stream                                                        │
-│  cut complete blocks · sanitize · number · reduce to a document        │
+│  cut complete blocks · sanitize · PostParse hooks · number · document  │
 │  the HtmlStream port · Splitter · Sanitizer · Credential · PDF pages   │
 └───────────▲───────────────────────────────────────────────────────────┘
             │  HTML text (chunks can split anywhere, even mid-tag)
@@ -79,7 +79,7 @@ Multi-page PDFs are split into pages and converted in parallel, so page 3 can fi
 
 | Package | Holds |
 |---|---|
-| `parser-stream` | the core: `HtmlStream`, `Converter`, `Splitter`, `Sanitizer`, `Credential`, the document reducer, the event contract, PDF page splitting |
+| `parser-stream` | the core: `HtmlStream`, `Converter`, `Splitter`, `Sanitizer`, `PostParse`, `Credential`, the document reducer, the event contract, PDF page splitting |
 | `@parser-stream/parsebench` | the ParseBench layout contract, with no provider in it |
 | `@parser-stream/gemini` | `GeminiFlashParseBenchParser`, `GeminiHtmlParser`, and the shared transport |
 | `@parser-stream/openai-compatible` | any OpenAI-compatible server: vLLM, Ollama, LM Studio |
@@ -114,6 +114,25 @@ const program = Effect.gen(function*() {
 ```
 
 `HtmlStreamRequest` has two fields: `source` (`{ bytes, mediaType, name? }`) and `part` (`{ unit, index, total }`, set when the source is one part of a larger document). Read `Credential` for the caller's secret. `examples/plain-text-parser.ts` is a plugin with no model at all, and `packages/gemini` is the full shape: options, `layer`, and `layerConfig`.
+
+## Hooks after the parser
+
+A hook runs on every finished block, after the sanitizer. Hooks are a pipeline: each one receives what the one before it returned.
+
+```ts
+import { Effect } from "effect"
+import { PostParse } from "parser-stream"
+
+const redact = PostParse.sync("redact", (html) => html.replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[SSN]"))
+
+const program = convert.pipe(Effect.provide(PostParse.layer(redact)))
+```
+
+A hook belongs here and not in a parser. A parser emits chunks that split anywhere, even mid-token, so `123-45-6789` can arrive as `123-4` and then `5-6789`. The core cuts the complete block first, so a hook always sees whole HTML. `PostParse.make` builds a hook that does its own work in Effect, for example one that calls a service over HTTP, and a hook that fails shows its own message in place of that part.
+
+The sanitizer runs first and cannot move: it is the security boundary, and it unwraps unknown tags, so it surfaces text a hook must see. Everything the core emits crosses the sanitizer and then every hook, including the finished rows of a table that has not closed yet. A hook can therefore see overlapping content more than once, so keep it deterministic. The default pipeline is empty, so a host that wants no hook pays nothing.
+
+`pnpm tsx examples/redact-after-parse.ts` runs the whole path.
 
 `PARSER` picks the plugin a host uses:
 

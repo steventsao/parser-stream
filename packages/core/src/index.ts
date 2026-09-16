@@ -26,6 +26,7 @@ export * as Credential from "./Credential.js"
 export * as Document from "./domain/Document.js"
 export * as Events from "./domain/Events.js"
 export * as Html from "./domain/Html.js"
+export * as PostParse from "./PostParse.js"
 export { HtmlStream, HtmlStreamError, type HtmlStreamRequest, type PartRef } from "./HtmlStream.js"
 export {
   type RewriterComment,
