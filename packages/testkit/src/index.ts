@@ -8,10 +8,14 @@ import { provide } from "parser-stream/Credential"
 import type { Source } from "parser-stream/Source"
 import * as PdfSplitter from "parser-stream/splitters/Pdf"
 
+/**
+ * Every page gets its own size. Identical blank pages serialize to identical
+ * bytes, which would hide a splitter that repeats or loses a page.
+ */
 export const makePdf = (pages: number): Effect.Effect<Uint8Array> =>
   Effect.promise(async () => {
     const document = await PDFDocument.create()
-    for (let i = 0; i < pages; i += 1) document.addPage([200, 200])
+    for (let i = 0; i < pages; i += 1) document.addPage([200, 200 + i * 20])
     return document.save()
   })
 
